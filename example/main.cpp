@@ -30,7 +30,7 @@ int main() {
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     while (RGFW_window_shouldClose(win) == RGFW_FALSE) {
-        RGFW_window_checkEvents(win, 0);
+        RGFW_window_checkEvents(win, RGFW_NO_WAIT);
         io.DisplaySize = ImVec2(win->r.w, win->r.h);
 
         imgui_newFrame();
@@ -57,7 +57,7 @@ int main() {
 
 
         glViewport(0, 0, 500, 500);
-        glClearColor(0xFF, 0xFF, 0xFF, 0xFF);
+        glClearColor(0.45f, 0.55f, 0.60f, 0xFF);
         glClear(GL_COLOR_BUFFER_BIT);
 
         imgui_render();
