@@ -3,10 +3,9 @@
 #define RGFW_IMGUI_IMPLEMENTATION
 #include "../imgui_impl_rgfw.h"
 
-#include "../imgui/backends/imgui_impl_opengl2.h"
-
 /* I'm using opengl 2 here because it requires less setup and I'm lazy */
-#include "../imgui/backends/imgui_impl_opengl2.cpp"
+#include "imgui_impl_opengl2.h"
+#include "imgui_impl_opengl2.cpp"
 
 /* handle these functions across all apis */
 void imgui_newFrame(void);
