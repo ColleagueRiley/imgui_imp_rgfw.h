@@ -237,9 +237,10 @@ void ImGui_ImplRgfw_MouseButtonCallback(RGFW_window* window, u8 button, double s
         return ImGui_ImplRgfw_ScrollCallback(window, 0, scroll);
     }
     
-    button++;
-    if (button == 2) button = 3;
-    else if (button == 3) button = 2;
+
+    if (button == RGFW_mouseMiddle) button = RGFW_mouseRight;
+    else if (button == RGFW_mouseRight) button = RGFW_mouseMiddle;
+    button--;
 
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackMousebutton != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
@@ -248,8 +249,9 @@ void ImGui_ImplRgfw_MouseButtonCallback(RGFW_window* window, u8 button, double s
     ImGui_ImplRgfw_UpdateKeyModifiers(window);
 
     ImGuiIO& io = ImGui::GetIO();
-    if (button < ImGuiMouseButton_COUNT)
+    if (button < ImGuiMouseButton_COUNT) {
         io.AddMouseButtonEvent(button, pressed);
+    }
 }
 
 void ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double yoffset)
