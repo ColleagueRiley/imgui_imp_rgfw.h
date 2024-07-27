@@ -59,8 +59,8 @@ int main() {
 
 
         glViewport(0, 0, win->r.w, win->r.h);
-        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 
         imgui_render();
         RGFW_window_swapBuffers(win);

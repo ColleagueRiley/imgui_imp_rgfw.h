@@ -12,6 +12,11 @@ ifneq (,$(filter $(CXX),wineg++ x86_64-w64-mingw32-g++ i686-w64-mingw32-g++))
 	STATIC = --static
     detected_OS := WindowsCross
 	OS_DIR = /
+	ifeq ($(CXX),x86_64-w64-mingw32-g++)
+		CC = x86_64-w64-mingw32-gcc
+	else
+		CC = i686-w64-mingw32-gcc
+	endif
 else
 	ifeq '$(findstring ;,$(PATH))' ';'
 		detected_OS := Windows
@@ -60,13 +65,14 @@ LINK_GL1 =
 LINK_GL3 =
 LINK_GL2 = 
 
-ifneq (,$(filter $(CXX),em++))
+ifneq (,$(filter $(CXX),emcc))
 	LINK_GL1 = -s LEGACY_GL_EMULATION -D LEGACY_GL_EMULATION -sGL_UNSAFE_OPTS=0
 	LINK_GL3 = -s FULL_ES3 
 	LINK_GL2 = -s FULL_ES2	
 	EXPORTED_JS = -s EXPORTED_RUNTIME_METHODS="['stringToNewUTF8']"
 	LIBS = -s WASM=1 -s ASYNCIFY -s USE_WEBGL2 -s GL_SUPPORT_EXPLICIT_SWAP_CONTROL=1 $(EXPORTED_JS)
 	EXT = .js
+	CC=emcc
 endif
 
 all: main.cpp
@@ -82,7 +88,7 @@ clean:
 debug: main.cpp
 	make imgui.o
 
-	$(CC) main.cpp -I./imgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -D RGFW_DEBUG -o rgfw-imgui$(EXT) 
-ifeq (,$(filter $(CXX),em++))
+	$(CXX) main.cpp -I./imgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -D RGFW_DEBUG -o rgfw-imgui$(EXT) 
+ifeq (,$(filter $(CXX),emcc))
 	.$(OS_DIR)rgfw-imgui$(EXT)
 endif
