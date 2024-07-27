@@ -75,13 +75,13 @@ all: main.cpp
 	$(CXX) main.cpp -I../imgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -o rgfw-imgui$(EXT)
 
 imgui.o:
-	$(CC) -c imgui/*.cpp
+	$(CC) -c imgui/*.cpp -nostdlib
 
 RGFW.o:
 	$(CC) -c -x c -D RGFW_IMPLEMENTATION RGFW.h -o RGFW.o
 
 clean:
-	rm -f *.exe rgfw-imgui *.o
+	rm -f *.exe rgfw-imgui *.o 
 
 debug: main.cpp
 	make RGFW.o
@@ -89,5 +89,5 @@ debug: main.cpp
 
 	$(CXX) main.cpp -I./imgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -D RGFW_DEBUG -o rgfw-imgui$(EXT)
 ifeq (,$(filter $(CXX),em++))
-	.$(OS_DIR)rgfw-imgui
+	.$(OS_DIR)rgfw-imgui$(EXT)
 endif

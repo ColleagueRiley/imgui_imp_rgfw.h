@@ -5,7 +5,8 @@
 
 /* I'm using opengl 2 here because it requires less setup and I'm lazy */
 #include "imgui_impl_opengl2.h"
-#include "imgui_impl_opengl2.cpp"
+
+#include <GL/gl.h>
 
 /* handle these functions across all apis */
 void imgui_newFrame(void);
