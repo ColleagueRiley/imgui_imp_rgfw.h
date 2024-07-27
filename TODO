@@ -1,4 +1,3 @@
-- for some reason mouse button press isn't doing anything (imgui)
 - check through file, make sure everything's good
 - test on Windows
 - test on macOS
