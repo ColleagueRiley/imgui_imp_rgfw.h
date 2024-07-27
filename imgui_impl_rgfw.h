@@ -95,11 +95,19 @@ static ImGui_ImplRgfw_Data* ImGui_ImplRgfw_GetBackendData()
     return ImGui::GetCurrentContext() ? (ImGui_ImplRgfw_Data*)ImGui::GetIO().BackendPlatformUserData : nullptr;
 }
 
+char* clipboard_str = nullptr;
+
 // Functions
 static const char* ImGui_ImplRgfw_GetClipboardText(void* user_data)
 {
     RGFW_UNUSED(user_data);
-    return RGFW_readClipboard(NULL);
+    if (clipboard_str != nullptr)
+        free(clipboard_str);
+    
+    size_t size;
+    clipboard_str = RGFW_readClipboard(&size);
+
+    return (const char*)clipboard_str;
 }
 
 static void ImGui_ImplRgfw_SetClipboardText(void* user_data, const char* text)
@@ -493,7 +501,10 @@ void ImGui_ImplRgfw_Shutdown()
 
     if (bd->InstalledCallbacks)
         ImGui_ImplRgfw_RestoreCallbacks(bd->Window);
-
+    
+    if (clipboard_str != nullptr) /* free clipboard if it was used */
+        free(clipboard_str);
+    
     io.BackendPlatformName = nullptr;
     io.BackendPlatformUserData = nullptr;
     io.BackendFlags &= ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos | ImGuiBackendFlags_HasGamepad);
