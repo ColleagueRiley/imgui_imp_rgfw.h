@@ -25,9 +25,8 @@
 #define RGFW_IMGUI_H
 
 struct RGFW_window;
-struct GLFWmonitor;
 
-// Follow "Getting Started" link and check examples/ folder to learn about using backends!
+/* basic api */
 IMGUI_IMPL_API bool     ImGui_ImplRgfw_InitForOpenGL(RGFW_window* window, bool install_callbacks);
 IMGUI_IMPL_API bool     ImGui_ImplRgfw_InitForVulkan(RGFW_window* window, bool install_callbacks);
 IMGUI_IMPL_API bool     ImGui_ImplRgfw_InitForOther(RGFW_window* window, bool install_callbacks);
@@ -40,7 +39,7 @@ IMGUI_IMPL_API void     ImGui_ImplRgfw_NewFrame();
 IMGUI_IMPL_API void     ImGui_ImplRgfw_InstallCallbacks(RGFW_window* window);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_RestoreCallbacks(RGFW_window* window);
 
-// GFLW callbacks options:
+// RGFW callbacks options:
 // - Set 'chain_for_all_windows=true' to enable chaining callbacks for all windows (including secondary viewports created by backends or by user)
 IMGUI_IMPL_API void     ImGui_ImplRgfw_SetCallbacksChainForAllWindows(bool chain_for_all_windows);
 
@@ -380,11 +379,6 @@ void ImGui_ImplRgfw_CharCallback(RGFW_window* window, unsigned int c)
     RGFW_UNUSED(window);
     ImGuiIO& io = ImGui::GetIO();
     io.AddInputCharacter(c);
-}
-
-void ImGui_ImplRgfw_MonitorCallback(RGFW_monitor*, int)
-{
-	// Unused in 'master' branch but 'docking' branch will use this, so we declare it ahead of it so if you have to install callbacks you can install this one too.
 }
 
 void ImGui_ImplRgfw_InstallCallbacks(RGFW_window* window)
