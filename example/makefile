@@ -70,24 +70,19 @@ ifneq (,$(filter $(CXX),em++))
 endif
 
 all: main.cpp
-	make RGFW.o
 	make imgui.o
-	$(CXX) main.cpp -I../imgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -o rgfw-imgui$(EXT)
+	$(CXX) main.cpp -Iimgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -o rgfw-imgui$(EXT)
 
 imgui.o:
-	$(CC) -c imgui/*.cpp -nostdlib
-
-RGFW.o:
-	$(CC) -c -x c -D RGFW_IMPLEMENTATION RGFW.h -o RGFW.o
+	$(CXX) -c imgui/*.cpp
 
 clean:
 	rm -f *.exe rgfw-imgui *.o 
 
 debug: main.cpp
-	make RGFW.o
 	make imgui.o
 
-	$(CXX) main.cpp -I./imgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -D RGFW_DEBUG -o rgfw-imgui$(EXT)
+	$(CC) main.cpp -I./imgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -D RGFW_DEBUG -o rgfw-imgui$(EXT) 
 ifeq (,$(filter $(CXX),em++))
 	.$(OS_DIR)rgfw-imgui$(EXT)
 endif

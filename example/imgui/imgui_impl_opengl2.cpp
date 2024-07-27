@@ -66,6 +66,7 @@
 #include <GL/gl.h>
 #endif
 
+
 struct ImGui_ImplOpenGL2_Data
 {
     GLuint       FontTexture;
@@ -180,7 +181,7 @@ void ImGui_ImplOpenGL2_RenderDrawData(ImDrawData* draw_data)
     GLint last_scissor_box[4]; glGetIntegerv(GL_SCISSOR_BOX, last_scissor_box);
     GLint last_shade_model; glGetIntegerv(GL_SHADE_MODEL, &last_shade_model);
     GLint last_tex_env_mode; glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &last_tex_env_mode);
-    glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT | GL_TRANSFORM_BIT);
+    //glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT | GL_TRANSFORM_BIT);
 
     // Setup desired GL state
     ImGui_ImplOpenGL2_SetupRenderState(draw_data, fb_width, fb_height);
@@ -238,7 +239,7 @@ void ImGui_ImplOpenGL2_RenderDrawData(ImDrawData* draw_data)
     glPopMatrix();
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
-    glPopAttrib();
+    //glPopAttrib();
     glPolygonMode(GL_FRONT, (GLenum)last_polygon_mode[0]); glPolygonMode(GL_BACK, (GLenum)last_polygon_mode[1]);
     glViewport(last_viewport[0], last_viewport[1], (GLsizei)last_viewport[2], (GLsizei)last_viewport[3]);
     glScissor(last_scissor_box[0], last_scissor_box[1], (GLsizei)last_scissor_box[2], (GLsizei)last_scissor_box[3]);

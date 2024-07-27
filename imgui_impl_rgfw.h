@@ -112,7 +112,10 @@ static const char* ImGui_ImplRgfw_GetClipboardText(void* user_data)
 static void ImGui_ImplRgfw_SetClipboardText(void* user_data, const char* text)
 {
     RGFW_UNUSED(user_data);
-    RGFW_writeClipboard(text, strlen(text));
+    RGFW_UNUSED(text);
+    //RGFW_writeClipboard(text, strlen(text));
+RGFW_writeClipboard("DOWN", 4);
+printf("h\n");
 }
 
 static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
@@ -453,7 +456,7 @@ static bool ImGui_ImplRgfw_Init(RGFW_window* window, bool install_callbacks, Rgf
     io.GetClipboardTextFn = ImGui_ImplRgfw_GetClipboardText;
     io.ClipboardUserData = bd->Window;
 #ifdef __EMSCRIPTEN__
-    io.PlatformOpenInShellFn = [](ImGuiContext*, const char* url) { ImGui_ImplRgfw_EmscriptenOpenURL(url); return true; };
+//    io.PlatformOpenInShellFn = [](ImGuiContext*, const char* url) { ImGui_ImplRgfw_EmscriptenOpenURL(url); return true; };
 #endif
     // Chain RGFW callbacks: our callbacks will call the user's previously installed callbacks, if any.
     if (install_callbacks)
@@ -572,9 +575,6 @@ static void ImGui_ImplRgfw_UpdateGamepads()
     io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
     int axes_count = bd->Window->event.axisesCount;
     int buttons_count = 8;
-    const float axes[] = {(float)bd->Window->event.axis[0].x, (float)bd->Window->event.axis[0].y, 
-                                 (float)bd->Window->event.axis[1].x, (float)bd->Window->event.axis[1].y
-                                };
 
     if (axes_count == 0 || buttons_count == 0)
         return;
@@ -593,8 +593,6 @@ static void ImGui_ImplRgfw_UpdateGamepads()
     MAP_BUTTON(ImGuiKey_GamepadDpadDown,    RGFW_JS_DOWN,      14);
     MAP_BUTTON(ImGuiKey_GamepadL1,          RGFW_JS_L1,    4);
     MAP_BUTTON(ImGuiKey_GamepadR1,          RGFW_JS_R1,   6);
-    MAP_ANALOG(ImGuiKey_GamepadL2,          RGFW_JS_L2,     5,      -0.75f,  +1.0f);
-    MAP_ANALOG(ImGuiKey_GamepadR2,          RGFW_JS_R2,    7,      -0.75f,  +1.0f);
     #undef MAP_BUTTON
     #undef MAP_ANALOG
 }
@@ -625,10 +623,6 @@ void ImGui_ImplRgfw_NewFrame()
 }
 
 //-----------------------------------------------------------------------------
-
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
 
 #endif // #ifndef IMGUI_DISABLE
 
