@@ -115,7 +115,6 @@ static void ImGui_ImplRgfw_SetClipboardText(void* user_data, const char* text)
     RGFW_UNUSED(text);
     //RGFW_writeClipboard(text, strlen(text));
 RGFW_writeClipboard("DOWN", 4);
-printf("h\n");
 }
 
 static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
@@ -456,7 +455,7 @@ static bool ImGui_ImplRgfw_Init(RGFW_window* window, bool install_callbacks, Rgf
     io.GetClipboardTextFn = ImGui_ImplRgfw_GetClipboardText;
     io.ClipboardUserData = bd->Window;
 #ifdef __EMSCRIPTEN__
-//    io.PlatformOpenInShellFn = [](ImGuiContext*, const char* url) { ImGui_ImplRgfw_EmscriptenOpenURL(url); return true; };
+      // io.PlatformOpenInShellFn = [](ImGuiContext*, const char* url) { ImGui_ImplRgfw_EmscriptenOpenURL(url); return true; };
 #endif
     // Chain RGFW callbacks: our callbacks will call the user's previously installed callbacks, if any.
     if (install_callbacks)
@@ -556,7 +555,7 @@ static void ImGui_ImplRgfw_UpdateMouseCursor()
             // FIXME-PLATFORM: Unfocused windows seems to fail changing the mouse cursor with RGFW 3.2, but 3.3 works here.
             RGFW_window_setMouseStandard(window, (imgui_cursor + 1));
             
-            RGFW_window_showMouse(window, 1);;
+            RGFW_window_showMouse(window, 1);
         }
     }
 }

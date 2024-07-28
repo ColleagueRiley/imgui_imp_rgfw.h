@@ -16,6 +16,8 @@ void imgui_shutdown(void);
 
 int main() {
     RGFW_window* win = RGFW_createWindow("imgui", RGFW_RECT(0, 0, 700, 600), RGFW_CENTER);
+    RGFW_window_makeCurrent(win);
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -39,7 +41,7 @@ int main() {
 
         static float f = 0.0f;
         static int counter = 0;
-
+        
         ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
             ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
@@ -56,7 +58,6 @@ int main() {
             ImGui::SameLine();
             ImGui::Text("counter = %d", counter);
         ImGui::End();
-
 
         glViewport(0, 0, win->r.w, win->r.h);
         glClear(GL_COLOR_BUFFER_BIT);
