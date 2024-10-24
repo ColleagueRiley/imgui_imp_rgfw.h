@@ -5,7 +5,7 @@ LIBS :=-lgdi32 -lm -lopengl32 -lwinmm -ggdb
 EXT = .exe
 STATIC =
 
-WARNINGS = -Wall -Werror -Wextra
+WARNINGS = -Wall -Wextra
 OS_DIR = \\
 
 ifneq (,$(filter $(CXX),wineg++ x86_64-w64-mingw32-g++ i686-w64-mingw32-g++))
@@ -38,6 +38,10 @@ ifeq ($(detected_OS),Darwin)        # Mac OS X
 	LIBS := -lm -framework Foundation -framework AppKit -framework OpenGL -framework CoreVideo$(STATIC)
 	EXT = 
 	OS_DIR = /
+	SRC = main.cpp
+	CXXFLAGS += -std=c++17
+else
+	SRC = main.cpp
 endif
 ifeq ($(detected_OS),Linux)
     LIBS := -lXrandr -lX11 -lm -lGL -ldl -lpthread $(STATIC)
@@ -75,20 +79,25 @@ ifneq (,$(filter $(CXX),emcc))
 	CC=emcc
 endif
 
-all: main.cpp
+all: $(SRC)
 	make imgui.o
-	$(CXX) main.cpp -Iimgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -o rgfw-imgui$(EXT)
+	make RGFW.o
+	$(CXX) $(SRC) $(CXXFLAGS) -Iimgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -o rgfw-imgui$(EXT)
 
 imgui.o:
 	$(CXX) -c imgui/*.cpp
+
+RGFW.o: RGFW.h RGFW.c
+	$(CC) -c RGFW.c -o RGFW.o
 
 clean:
 	rm -f *.exe rgfw-imgui *.o 
 
 debug: main.cpp
 	make imgui.o
+	make RGFW.o
 
-	$(CXX) main.cpp -I./imgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -D RGFW_DEBUG -o rgfw-imgui$(EXT) 
+	$(CXX) $(SRC) $(CXXFLAGS) -I./imgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -D RGFW_DEBUG -o rgfw-imgui$(EXT) 
 ifeq (,$(filter $(CXX),emcc))
 	.$(OS_DIR)rgfw-imgui$(EXT)
 endif
