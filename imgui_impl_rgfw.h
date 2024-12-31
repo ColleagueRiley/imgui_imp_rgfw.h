@@ -119,9 +119,38 @@ RGFW_writeClipboard("DOWN", 4);
 
 static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
 {
-    static const ImGuiKey map[] = {
+    static const ImGuiKey map[] = {        
         ImGuiKey_None,
-        ImGuiKey_Escape,
+        ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
+        ImGuiKey_Backspace, 
+        ImGuiKey_Tab, 
+        ImGuiKey_Enter, 
+        ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
+        ImGuiKey_Escape, 
+        ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
+        ImGuiKey_Space,
+        ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
+        ImGuiKey_Apostrophe,
+        ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
+        ImGuiKey_Comma,
+        ImGuiKey_Minus,
+        ImGuiKey_Period,
+        ImGuiKey_Slash,
+        ImGuiKey_0, ImGuiKey_1, ImGuiKey_2, ImGuiKey_3, ImGuiKey_4, ImGuiKey_5, ImGuiKey_6, ImGuiKey_7, ImGuiKey_8, ImGuiKey_9,
+        ImGuiKey_None,
+        ImGuiKey_Semicolon,
+        ImGuiKey_None, 
+        ImGuiKey_Equal,
+        ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
+        ImGuiKey_Backslash,
+        ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
+        ImGuiKey_GraveAccent,
+        ImGuiKey_A, ImGuiKey_B, ImGuiKey_C, ImGuiKey_D, ImGuiKey_E, ImGuiKey_F, ImGuiKey_G, ImGuiKey_H, ImGuiKey_I, ImGuiKey_J, ImGuiKey_K, ImGuiKey_L, ImGuiKey_M, ImGuiKey_N, ImGuiKey_O, ImGuiKey_P, ImGuiKey_Q, ImGuiKey_R, ImGuiKey_S, ImGuiKey_T, ImGuiKey_U, ImGuiKey_V, ImGuiKey_W, ImGuiKey_X, ImGuiKey_Y, ImGuiKey_Z,
+        ImGuiKey_LeftBracket,
+        ImGuiKey_None,
+        ImGuiKey_RightBracket,
+        ImGuiKey_None,
+        ImGuiKey_Delete,
         ImGuiKey_F1,
         ImGuiKey_F2,
         ImGuiKey_F3,
@@ -134,21 +163,6 @@ static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
         ImGuiKey_F10,
         ImGuiKey_F11,
         ImGuiKey_F12,
-        ImGuiKey_GraveAccent,
-        ImGuiKey_0,
-        ImGuiKey_1,
-        ImGuiKey_2,
-        ImGuiKey_3,
-        ImGuiKey_4,
-        ImGuiKey_5,
-        ImGuiKey_6,
-        ImGuiKey_7,
-        ImGuiKey_8,
-        ImGuiKey_9,
-        ImGuiKey_Minus,
-        ImGuiKey_Equal,
-        ImGuiKey_Backspace,
-        ImGuiKey_Tab,
         ImGuiKey_CapsLock,
         ImGuiKey_LeftShift,
         ImGuiKey_LeftCtrl,
@@ -158,50 +172,14 @@ static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
         ImGuiKey_RightCtrl,
         ImGuiKey_RightAlt,
         ImGuiKey_RightSuper,
-        ImGuiKey_Space,
-        ImGuiKey_A,
-        ImGuiKey_B,
-        ImGuiKey_C,
-        ImGuiKey_D,
-        ImGuiKey_E,
-        ImGuiKey_F,
-        ImGuiKey_G,
-        ImGuiKey_H,
-        ImGuiKey_I,
-        ImGuiKey_J,
-        ImGuiKey_K,
-        ImGuiKey_L,
-        ImGuiKey_M,
-        ImGuiKey_N,
-        ImGuiKey_O,
-        ImGuiKey_P,
-        ImGuiKey_Q,
-        ImGuiKey_R,
-        ImGuiKey_S,
-        ImGuiKey_T,
-        ImGuiKey_U,
-        ImGuiKey_V,
-        ImGuiKey_W,
-        ImGuiKey_X,
-        ImGuiKey_Y,
-        ImGuiKey_Z,
-        ImGuiKey_Period,
-        ImGuiKey_Comma,
-        ImGuiKey_Slash,
-        ImGuiKey_LeftBracket,
-        ImGuiKey_RightBracket,
-        ImGuiKey_Semicolon,
-        ImGuiKey_Enter,
-        ImGuiKey_Apostrophe,
-        ImGuiKey_Backslash,
         ImGuiKey_UpArrow,
         ImGuiKey_DownArrow,
         ImGuiKey_LeftArrow,
         ImGuiKey_RightArrow,
-        ImGuiKey_Delete,
         ImGuiKey_Insert,
         ImGuiKey_End,
         ImGuiKey_Home,
+        
         ImGuiKey_PageUp,
         ImGuiKey_PageDown,
         ImGuiKey_NumLock,
@@ -219,7 +197,7 @@ static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
         ImGuiKey_Keypad9,
         ImGuiKey_Keypad0,
         ImGuiKey_KeypadDecimal,
-        ImGuiKey_KeypadEnter,
+        ImGuiKey_KeypadEnter
     };
 
     return map[key];
@@ -273,64 +251,22 @@ void ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double y
     io.AddMouseWheelEvent((float)xoffset, (float)yoffset);
 }
 
-char RGFW_keyCodeToChar(u32 keyCode, b8 caps) {
-    static const char map[] = {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        '`', '0', '1', '2', '3',
-        '4', '5', '6', '7', '8', 
-        '9', '-', '=', 0, '\t', 
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ' ', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
-        'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
-        'p', 'q', 'r', 's', 't', 'u', 'v', 'w',
-        'x', 'y', 'z', '.', ',', '/', '[', ']', 
-        ';', '\n', '\'', '\\', 
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-        '/', '*', '-', '1', '2', '3', 
-        '3', '5', '6', '7', '8',  '9', '0', '\n'
-    };
-
-    static const char mapCaps[] = {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        '~', ')', '!', '@', '#',
-        '$', '%', '^', '&', '*', 
-        '(', '_', '+', 0, '0', 
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ' ', 'A', 'B', 'C', 'D', 'E', 'F', 'G',
-        'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
-        'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W',
-        'X', 'Y', 'Z', '>', '<', '?', '{', '}', 
-        ':', '\n', '"', '|', 
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-        '?', '*', '-', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    };
-
-    if (caps == RGFW_FALSE)
-        return map[keyCode];
-    
-    return mapCaps[keyCode];
-}
-
-void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u32 keycode, char keyName[16], u8 lockState, b8 pressed)
+void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u32 key, u32 keyChar, char keyName[16], u8 lockState, b8 pressed)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackKey != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
-        bd->PrevUserCallbackKey(window, keycode, keyName, lockState, pressed);
+        bd->PrevUserCallbackKey(window, key, keyChar, keyName, lockState, pressed);
     
     ImGui_ImplRgfw_UpdateKeyModifiers(window);
     
-    #define RGFW_xor(x, y) (( (x) && (!(y)) ) ||  ((y) && (!(x)) ))
-    b8 caps4caps = (lockState & RGFW_CAPSLOCK) && ((keycode >= RGFW_a) && (keycode <= RGFW_z));
-    char ch = RGFW_keyCodeToChar(keycode, RGFW_xor((RGFW_isPressed(window, RGFW_ShiftL) || RGFW_isPressed(window, RGFW_ShiftR)), caps4caps));
-    #undef RGFW_xor
-
-    if (pressed == RGFW_TRUE)
-        ImGui_ImplRgfw_CharCallback(window, ch);
+    if (pressed == RGFW_TRUE) {
+        ImGui_ImplRgfw_CharCallback(window, keyChar);
+    }
 
     ImGuiIO& io = ImGui::GetIO();
-    ImGuiKey imgui_key = ImGui_ImplRgfw_KeyToImGuiKey(keycode);
+    ImGuiKey imgui_key = ImGui_ImplRgfw_KeyToImGuiKey(key);
     io.AddKeyEvent(imgui_key, pressed);
-    io.SetKeyEventNativeData(imgui_key, keycode, keycode); // To support legacy indexing (<1.87 user code)
+    //io.SetKeyEventNativeData(imgui_key, keyChar, key); // To support legacy indexing (<1.87 user code)
 }
 
 void ImGui_ImplRgfw_WindowFocusCallback(RGFW_window* window, b8 inFocus)
@@ -577,21 +513,23 @@ static void ImGui_ImplRgfw_UpdateGamepads()
 
     if (axes_count == 0 || buttons_count == 0)
         return;
-    #define MAP_BUTTON(KEY_NO, _UNUSED, BUTTON_NO)          do { io.AddKeyEvent(KEY_NO, (buttons_count > BUTTON_NO && RGFW_isPressedJS(bd->Window, 1, BUTTON_NO) == RGFW_TRUE)); } while (0)
+    #define MAP_BUTTON(KEY_NO, _UNUSED, BUTTON_NO)          do { io.AddKeyEvent(KEY_NO, (buttons_count > BUTTON_NO && RGFW_isPressedGP(bd->Window, 1, BUTTON_NO) == RGFW_TRUE)); } while (0)
     #define MAP_ANALOG(KEY_NO, _UNUSED, AXIS_NO, V0, V1)    do { float v = (axes_count > AXIS_NO) ? axes[AXIS_NO] : V0; v = (v - V0) / (V1 - V0); io.AddKeyAnalogEvent(KEY_NO, v > 0.10f, Saturate(v)); } while (0)
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
-    MAP_BUTTON(ImGuiKey_GamepadStart,       RGFW_JS_START,          9);
-    MAP_BUTTON(ImGuiKey_GamepadBack,        RGFW_JS_SELECT,           8);
-    MAP_BUTTON(ImGuiKey_GamepadFaceLeft,    RGFW_JS_Y,              2);     // Xbox X, PS Square
-    MAP_BUTTON(ImGuiKey_GamepadFaceRight,   RGFW_JS_B,              1);     // Xbox B, PS Circle
-    MAP_BUTTON(ImGuiKey_GamepadFaceUp,      RGFW_JS_X,              3);     // Xbox Y, PS Triangle
-    MAP_BUTTON(ImGuiKey_GamepadFaceDown,    RGFW_JS_A,              0);     // Xbox A, PS Cross
-    MAP_BUTTON(ImGuiKey_GamepadDpadLeft,    RGFW_JS_LEFT,      15);
-    MAP_BUTTON(ImGuiKey_GamepadDpadRight,   RGFW_JS_RIGHT,     16);
-    MAP_BUTTON(ImGuiKey_GamepadDpadUp,      RGFW_JS_UP,        13);
-    MAP_BUTTON(ImGuiKey_GamepadDpadDown,    RGFW_JS_DOWN,      14);
-    MAP_BUTTON(ImGuiKey_GamepadL1,          RGFW_JS_L1,    4);
-    MAP_BUTTON(ImGuiKey_GamepadR1,          RGFW_JS_R1,   6);
+    MAP_BUTTON(ImGuiKey_GamepadStart,       RGFW_GP_START,          9);
+    MAP_BUTTON(ImGuiKey_GamepadBack,        RGFW_GP_SELECT,           8);
+    MAP_BUTTON(ImGuiKey_GamepadFaceLeft,    RGFW_GP_Y,              2);     // Xbox X, PS Square
+    MAP_BUTTON(ImGuiKey_GamepadFaceRight,   RGFW_GP_B,              1);     // Xbox B, PS Circle
+    MAP_BUTTON(ImGuiKey_GamepadFaceUp,      RGFW_GP_X,              3);     // Xbox Y, PS Triangle
+    MAP_BUTTON(ImGuiKey_GamepadFaceDown,    RGFW_GP_A,              0);     // Xbox A, PS Cross
+    MAP_BUTTON(ImGuiKey_GamepadDpadLeft,    RGFW_GP_LEFT,      15);
+    MAP_BUTTON(ImGuiKey_GamepadDpadRight,   RGFW_GP_RIGHT,     16);
+    MAP_BUTTON(ImGuiKey_GamepadDpadUp,      RGFW_GP_UP,        13);
+    MAP_BUTTON(ImGuiKey_GamepadDpadDown,    RGFW_GP_DOWN,      14);
+    MAP_BUTTON(ImGuiKey_GamepadR3,          RGFW_GP_R3,           RGFW_GP_R3);
+    MAP_BUTTON(ImGuiKey_GamepadL3,          RGFW_GP_L3,           RGFW_GP_L3);
+    MAP_BUTTON(ImGuiKey_GamepadL1,          RGFW_GP_L1,    4);
+    MAP_BUTTON(ImGuiKey_GamepadR1,          RGFW_GP_R1,   6);
     #undef MAP_BUTTON
     #undef MAP_ANALOG
 }
