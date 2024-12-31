@@ -81,21 +81,16 @@ endif
 
 all: $(SRC)
 	make imgui.o
-	make RGFW.o
 	$(CXX) $(SRC) $(CXXFLAGS) -Iimgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -o rgfw-imgui$(EXT)
 
 imgui.o:
 	$(CXX) -c imgui/*.cpp
-
-RGFW.o: RGFW.h RGFW.c
-	$(CC) -c RGFW.c -o RGFW.o
 
 clean:
 	rm -f *.exe rgfw-imgui *.o 
 
 debug: main.cpp
 	make imgui.o
-	make RGFW.o
 
 	$(CXX) $(SRC) $(CXXFLAGS) -I./imgui *.o $(LINK_GL1) $(LIBS) -I. $(WARNINGS) -D RGFW_DEBUG -o rgfw-imgui$(EXT) 
 ifeq (,$(filter $(CXX),emcc))
