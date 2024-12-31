@@ -4483,6 +4483,7 @@ static void keyboard_key (void *data, struct wl_keyboard *keyboard, uint32_t ser
 	ev.type = RGFW_keyPressed + state;
 	ev.key = RGFW_key;
 	ev.keyChar = (u8)keysym;
+
 	strcpy(ev.keyName, name);
 	ev.repeat = RGFW_isHeld(RGFW_key_win, RGFW_key);
 	RGFW_eventPipe_push(RGFW_key_win, ev);
@@ -6152,7 +6153,7 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 					break;
 
 				if (raw.data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE) {
-					POINT pos = {0};
+					POINT pos = {0, 0};
 					int width, height;
 
 					if (raw.data.mouse.usFlags & MOUSE_VIRTUAL_DESKTOP) {
@@ -8123,7 +8124,9 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 				u32 key = (u16) objc_msgSend_uint(e, sel_registerName("keyCode"));
 
 				u32 mappedKey = *((u32*)((char*)(const char*) NSString_to_char(objc_msgSend_id(e, sel_registerName("charactersIgnoringModifiers")))));
-
+				if (((u8)mappedKey) == 239)
+					mappedKey = 0;
+				
 				win->event.keyChar = (u8)mappedKey;
 
 				win->event.key = RGFW_apiKeyToRGFW(key);
@@ -8143,6 +8146,9 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 				u32 key = (u16) objc_msgSend_uint(e, sel_registerName("keyCode"));
 
 				u32 mappedKey = *((u32*)((char*)(const char*) NSString_to_char(objc_msgSend_id(e, sel_registerName("charactersIgnoringModifiers")))));
+				if (((u8)mappedKey) == 239)
+					mappedKey = 0;
+				
 				win->event.keyChar = (u8)mappedKey;
 
 				win->event.key = RGFW_apiKeyToRGFW(key);
