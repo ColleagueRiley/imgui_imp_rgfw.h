@@ -7,7 +7,11 @@
 /* I'm using opengl 2 here because it requires less setup and I'm lazy */
 #include "imgui_impl_opengl2.h"
 
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#else
 #include <GL/gl.h>
+#endif
 
 /* handle these functions across all apis */
 void imgui_newFrame(void);
@@ -32,7 +36,10 @@ int main() {
     ImGui_ImplOpenGL2_Init();
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
+ 
+    RGFW_monitor monitor = RGFW_window_getMonitor(win);
+    io.DisplayFramebufferScale = ImVec2(monitor.scaleX, monitor.scaleY);
+ 
     while (RGFW_window_shouldClose(win) == RGFW_FALSE) {
         RGFW_window_checkEvents(win, RGFW_NO_WAIT);
         io.DisplaySize = ImVec2(win->r.w, win->r.h);
