@@ -52,7 +52,7 @@ IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorEnterCallback(RGFW_window* window, 
 IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p);   // Since 1.87
 IMGUI_IMPL_API void     ImGui_ImplRgfw_MouseButtonCallback(RGFW_window* window, u8 button, double scroll, u8 pressed);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double yoffset);
-IMGUI_IMPL_API void     ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u32 keycode, char keyName[16], u8 lockState, u8 pressed);
+IMGUI_IMPL_API void     ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 keycode, char keyChar, u8 modState, u8 pressed);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_CharCallback(RGFW_window* window, unsigned int c);
 #endif /* ifndef RGFW_IMGUI_H */
 
@@ -100,13 +100,9 @@ char* clipboard_str = nullptr;
 static const char* ImGui_ImplRgfw_GetClipboardText(void* user_data)
 {
     RGFW_UNUSED(user_data);
-    if (clipboard_str != nullptr)
-        free(clipboard_str);
     
     size_t size;
-    clipboard_str = RGFW_readClipboard(&size);
-
-    return (const char*)clipboard_str;
+    return RGFW_readClipboard(&size);
 }
 
 static void ImGui_ImplRgfw_SetClipboardText(void* user_data, const char* text)
@@ -203,15 +199,6 @@ static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
     return map[key];
 }
 
-static void ImGui_ImplRgfw_UpdateKeyModifiers(RGFW_window* window)
-{
-    ImGuiIO& io = ImGui::GetIO();
-    io.AddKeyEvent(ImGuiMod_Ctrl,  (RGFW_isPressed(window, RGFW_ControlL) == RGFW_TRUE) || (RGFW_isPressed(window, RGFW_ControlL) == RGFW_TRUE));
-    io.AddKeyEvent(ImGuiMod_Shift, (RGFW_isPressed(window, RGFW_ShiftL)   == RGFW_TRUE) || (RGFW_isPressed(window, RGFW_ShiftR)   == RGFW_TRUE));
-    io.AddKeyEvent(ImGuiMod_Alt,   (RGFW_isPressed(window, RGFW_AltL)     == RGFW_TRUE) || (RGFW_isPressed(window, RGFW_AltR)     == RGFW_TRUE));
-    io.AddKeyEvent(ImGuiMod_Super, (RGFW_isPressed(window, RGFW_SuperL)   == RGFW_TRUE) || (RGFW_isPressed(window, RGFW_SuperR)   == RGFW_TRUE));
-}
-
 static bool ImGui_ImplRgfw_ShouldChainCallback(RGFW_window* window)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
@@ -233,8 +220,6 @@ void ImGui_ImplRgfw_MouseButtonCallback(RGFW_window* window, u8 button, double s
     if (bd->PrevUserCallbackMousebutton != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
         bd->PrevUserCallbackMousebutton(window, button, scroll, pressed);
 
-    ImGui_ImplRgfw_UpdateKeyModifiers(window);
-
     ImGuiIO& io = ImGui::GetIO();
     if (button < ImGuiMouseButton_COUNT) {
         io.AddMouseButtonEvent(button, pressed);
@@ -251,19 +236,23 @@ void ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double y
     io.AddMouseWheelEvent((float)xoffset, (float)yoffset);
 }
 
-void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u32 key, u32 keyChar, char keyName[16], u8 lockState, b8 pressed)
+void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 key, char keyChar, u8 modState, b8 pressed)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackKey != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
-        bd->PrevUserCallbackKey(window, key, keyChar, keyName, lockState, pressed);
+        bd->PrevUserCallbackKey(window, key, keyChar, modState, pressed);
     
-    ImGui_ImplRgfw_UpdateKeyModifiers(window);
-    
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddKeyEvent(ImGuiMod_Ctrl, modState & RGFW_modControl);
+    io.AddKeyEvent(ImGuiMod_Shift, modState & RGFW_modShift);
+    io.AddKeyEvent(ImGuiMod_Alt,  modState & RGFW_modAlt);
+    io.AddKeyEvent(ImGuiMod_Super, modState & RGFW_modSuper);
+    io.AddKeyEvent(ImGuiMod_Super, modState & RGFW_modSuper);
+
     if (pressed == RGFW_TRUE) {
         ImGui_ImplRgfw_CharCallback(window, keyChar);
     }
 
-    ImGuiIO& io = ImGui::GetIO();
     ImGuiKey imgui_key = ImGui_ImplRgfw_KeyToImGuiKey(key);
     io.AddKeyEvent(imgui_key, pressed);
     //io.SetKeyEventNativeData(imgui_key, keyChar, key); // To support legacy indexing (<1.87 user code)
@@ -434,9 +423,6 @@ void ImGui_ImplRgfw_Shutdown()
     if (bd->InstalledCallbacks)
         ImGui_ImplRgfw_RestoreCallbacks(bd->Window);
     
-    if (clipboard_str != nullptr) /* free clipboard if it was used */
-        free(clipboard_str);
-    
     io.BackendPlatformName = nullptr;
     io.BackendPlatformUserData = nullptr;
     io.BackendFlags &= ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos | ImGuiBackendFlags_HasGamepad);
@@ -473,7 +459,7 @@ static void ImGui_ImplRgfw_UpdateMouseCursor()
 {
     ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
-    if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) || (bd->Window->_winArgs & (1L<<2)))
+    if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) || (bd->Window->_flags & (1L<<2)))
         return;
 
     ImGuiMouseCursor imgui_cursor = ImGui::GetMouseCursor();
@@ -513,23 +499,23 @@ static void ImGui_ImplRgfw_UpdateGamepads()
 
     if (axes_count == 0 || buttons_count == 0)
         return;
-    #define MAP_BUTTON(KEY_NO, _UNUSED, BUTTON_NO)          do { io.AddKeyEvent(KEY_NO, (buttons_count > BUTTON_NO && RGFW_isPressedGP(bd->Window, 1, BUTTON_NO) == RGFW_TRUE)); } while (0)
+    #define MAP_BUTTON(KEY_NO, _UNUSED, BUTTON_NO)          do { io.AddKeyEvent(KEY_NO, (buttons_count > BUTTON_NO && RGFW_isPressedGamepad(bd->Window, 1, BUTTON_NO) == RGFW_TRUE)); } while (0)
     #define MAP_ANALOG(KEY_NO, _UNUSED, AXIS_NO, V0, V1)    do { float v = (axes_count > AXIS_NO) ? axes[AXIS_NO] : V0; v = (v - V0) / (V1 - V0); io.AddKeyAnalogEvent(KEY_NO, v > 0.10f, Saturate(v)); } while (0)
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
-    MAP_BUTTON(ImGuiKey_GamepadStart,       RGFW_GP_START,          9);
-    MAP_BUTTON(ImGuiKey_GamepadBack,        RGFW_GP_SELECT,           8);
-    MAP_BUTTON(ImGuiKey_GamepadFaceLeft,    RGFW_GP_Y,              2);     // Xbox X, PS Square
-    MAP_BUTTON(ImGuiKey_GamepadFaceRight,   RGFW_GP_B,              1);     // Xbox B, PS Circle
-    MAP_BUTTON(ImGuiKey_GamepadFaceUp,      RGFW_GP_X,              3);     // Xbox Y, PS Triangle
-    MAP_BUTTON(ImGuiKey_GamepadFaceDown,    RGFW_GP_A,              0);     // Xbox A, PS Cross
-    MAP_BUTTON(ImGuiKey_GamepadDpadLeft,    RGFW_GP_LEFT,      15);
-    MAP_BUTTON(ImGuiKey_GamepadDpadRight,   RGFW_GP_RIGHT,     16);
-    MAP_BUTTON(ImGuiKey_GamepadDpadUp,      RGFW_GP_UP,        13);
-    MAP_BUTTON(ImGuiKey_GamepadDpadDown,    RGFW_GP_DOWN,      14);
-    MAP_BUTTON(ImGuiKey_GamepadR3,          RGFW_GP_R3,           RGFW_GP_R3);
-    MAP_BUTTON(ImGuiKey_GamepadL3,          RGFW_GP_L3,           RGFW_GP_L3);
-    MAP_BUTTON(ImGuiKey_GamepadL1,          RGFW_GP_L1,    4);
-    MAP_BUTTON(ImGuiKey_GamepadR1,          RGFW_GP_R1,   6);
+    MAP_BUTTON(ImGuiKey_GamepadStart,       RGFW_gamepadStart,          9);
+    MAP_BUTTON(ImGuiKey_GamepadBack,        RGFW_gamepadSelect,           8);
+    MAP_BUTTON(ImGuiKey_GamepadFaceLeft,    RGFW_gamepadY,              2);     // Xbox X, PS Square
+    MAP_BUTTON(ImGuiKey_GamepadFaceRight,   RGFW_gamepadB,              1);     // Xbox B, PS Circle
+    MAP_BUTTON(ImGuiKey_GamepadFaceUp,      RGFW_gamepadX,              3);     // Xbox Y, PS Triangle
+    MAP_BUTTON(ImGuiKey_GamepadFaceDown,    RGFW_gamepadA,              0);     // Xbox A, PS Cross
+    MAP_BUTTON(ImGuiKey_GamepadDpadLeft,    RGFW_gamepadLeft,      15);
+    MAP_BUTTON(ImGuiKey_GamepadDpadRight,   RGFW_gamepadRight,     16);
+    MAP_BUTTON(ImGuiKey_GamepadDpadUp,      RGFW_gamepadUp,        13);
+    MAP_BUTTON(ImGuiKey_GamepadDpadDown,    RGFW_gamepadDown,      14);
+    MAP_BUTTON(ImGuiKey_GamepadR3,          RGFW_gamepadR3,           RGFW_gamepadR3);
+    MAP_BUTTON(ImGuiKey_GamepadL3,          RGFW_gamepadL3,           RGFW_gamepadL3);
+    MAP_BUTTON(ImGuiKey_GamepadL1,          RGFW_gamepadL1,    4);
+    MAP_BUTTON(ImGuiKey_GamepadR1,          RGFW_gamepadR1,   6);
     #undef MAP_BUTTON
     #undef MAP_ANALOG
 }

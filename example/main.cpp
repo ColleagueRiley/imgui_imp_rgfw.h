@@ -19,7 +19,7 @@ void imgui_render(void);
 void imgui_shutdown(void);
 
 int main() {
-    RGFW_window* win = RGFW_createWindow("imgui", RGFW_RECT(0, 0, 700, 600), RGFW_CENTER);
+    RGFW_window* win = RGFW_createWindow("imgui", RGFW_RECT(0, 0, 700, 600), RGFW_windowCenter);
     RGFW_window_makeCurrent(win);
 
     IMGUI_CHECKVERSION();
@@ -41,7 +41,7 @@ int main() {
     io.DisplayFramebufferScale = ImVec2(monitor.scaleX, monitor.scaleY);
  
     while (RGFW_window_shouldClose(win) == RGFW_FALSE) {
-        RGFW_window_checkEvents(win, RGFW_NO_WAIT);
+        RGFW_window_checkEvents(win, RGFW_eventNoWait);
         io.DisplaySize = ImVec2(win->r.w, win->r.h);
 
         imgui_newFrame();
@@ -56,7 +56,7 @@ int main() {
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
-            char buffer[200];
+            char buffer[200] = {0};
             ImGui::InputText("label", buffer, 200);
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
@@ -66,7 +66,7 @@ int main() {
             ImGui::Text("counter = %d", counter);
         ImGui::End();
 
-        glViewport(0, 0, win->r.w, win->r.h);
+        glViewport(0, 0, win->r.w * monitor.pixelRatio, win->r.h * monitor.pixelRatio);
         glClear(GL_COLOR_BUFFER_BIT);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 
