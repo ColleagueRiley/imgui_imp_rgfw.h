@@ -977,7 +977,7 @@ RGFWDEF const char* RGFW_readClipboard(size_t* size); /*!< read clipboard data *
 RGFWDEF RGFW_ssize_t RGFW_readClipboardPtr(char* str, size_t strCapacity);
 RGFWDEF void RGFW_writeClipboard(const char* text, u32 textLen); /*!< write text to the clipboard */
 /** @} */
-a
+
 /**
 
 
