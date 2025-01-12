@@ -120,6 +120,7 @@ int main() {
 	after you compile the library into an object file, you can also turn the object file into an static or shared library
 
 	(commands ar and gcc can be replaced with whatever equivalent your system uses)
+
 	static : ar rcs RGFW.a RGFW.o
 	shared :
 		windows:
@@ -140,14 +141,8 @@ int main() {
 
 		GLFW:
 			certain parts of winapi and X11 are very poorly documented,
-			GLFW's source code was referenced and used throughout the project (used code is marked in some way),
-			this mainly includes, code for drag and drops, code for setting the icon to a bitmap and the code for managing the clipboard for X11 (as these parts are not documented very well)
-
-			GLFW Copyright, https::/github.com/GLFW/GLFW
-
-			Copyright (c) 2002-2006 Marcus Geelnard
-			Copyright (c) 2006-2019 Camilla Löwy
-
+			GLFW's source code was referenced and used throughout the project.
+		
 		contributors : (feel free to put yourself here if you contribute)
 		krisvers -> code review
 		EimaMei (SaCode) -> code review
@@ -268,6 +263,7 @@ int main() {
 		typedef signed long long		i64;
 	#else /* use stdint standard types instead of c ""standard"" types */
 		#include <stdint.h>
+		#include <stddef.h>
 
 		typedef uint8_t     u8;
 		typedef int8_t      i8;
@@ -351,7 +347,7 @@ int main() {
 	#endif
 
 #elif defined(RGFW_WAYLAND)
-    #if !defined(RGFW_NO_API) && (!defined(RGFW_BUFFER) || defined(RGFW_OPENGL))
+    #if !defined(RGFW_NO_API) && (!defined(RGFW_BUFFER) || defined(RGFW_OPENGL)) && !defined(RGFW_OSMESA)
 		#define RGFW_EGL
 		#define RGFW_OPENGL
 		#include <wayland-egl.h>
@@ -481,7 +477,7 @@ typedef RGFW_ENUM(u8, RGFW_eventTypes) {
 };
 
 /*! mouse button codes (RGFW_event.button) */
-enum RGFW_mouse_codes {
+RGFW_ENUM(u8, RGFW_mouse_codes) {
 	RGFW_mouseNone = 0, /*!< no mouse button is pressed*/
 	RGFW_mouseLeft, /*!< left mouse button is pressed*/
 	RGFW_mouseMiddle, /*!< mouse-wheel-button is pressed*/
@@ -974,10 +970,14 @@ RGFWDEF b8 RGFW_wasMousePressed(RGFW_window* win, u8 button /*!< mouse button co
 
 /** * @defgroup Clipboard
 * @{ */
+typedef ptrdiff_t RGFW_ssize_t;
+
 RGFWDEF const char* RGFW_readClipboard(size_t* size); /*!< read clipboard data */
+/*! read clipboard data or send a NULL str to just get the length of the clipboard data */
+RGFWDEF RGFW_ssize_t RGFW_readClipboardPtr(char* str, size_t strCapacity);
 RGFWDEF void RGFW_writeClipboard(const char* text, u32 textLen); /*!< write text to the clipboard */
 /** @} */
-
+a
 /**
 
 
@@ -1321,8 +1321,11 @@ typedef RGFW_ENUM(u8, RGFW_mouseIcons) {
 	you can ignore this if you use standard malloc/free
 */
 
-void* RGFW_allocatorMalloc(void* userdata, size_t size) { return RGFW_ALLOC(userdata, size);  }
-void RGFW_allocatorFree(void* userdata, void* ptr) { RGFW_FREE(userdata, ptr); }
+void* RGFW_allocatorMalloc(void* userdata, size_t size) {
+	void* out = RGFW_ALLOC(userdata, size); assert(out != NULL); 
+	return out;
+}
+void RGFW_allocatorFree(void* userdata, void* ptr) { assert(ptr != NULL); RGFW_FREE(userdata, ptr); }
 RGFW_allocator RGFW_current_allocator = {RGFW_USERPTR, RGFW_allocatorMalloc, RGFW_allocatorFree};
 
 RGFW_allocator RGFW_loadAllocator(RGFW_allocator allocator) {
@@ -1343,6 +1346,25 @@ void RGFW_clipboard_switch(char* newstr) {
 		RGFW_clipboard_alloc.free(RGFW_clipboard_alloc.userdata, RGFW_clipboard_data);
 	RGFW_clipboard_data =  newstr;
 	RGFW_clipboard_alloc = RGFW_current_allocator;
+}
+
+#define RGFW_CHECK_CLIPBOARD() \
+	if (size <= 0 && RGFW_clipboard_data != NULL) \
+		return (const char*)RGFW_clipboard_data; \
+	else if (size <= 0) \
+		return "\0";
+
+const char* RGFW_readClipboard(size_t* len) {
+	RGFW_ssize_t size = RGFW_readClipboardPtr(NULL, 0);
+	RGFW_CHECK_CLIPBOARD();
+	char* str = (char*)RGFW_alloc(size);	
+	size = RGFW_readClipboardPtr(str, size);
+	RGFW_CHECK_CLIPBOARD();
+
+	if (len != NULL) *len = size;
+
+	RGFW_clipboard_switch(str);
+	return (const char*)str;
 }
 
 /*
@@ -1708,6 +1730,10 @@ RGFW_window* RGFW_createWindow(const char* name, RGFW_rect rect, RGFW_windowFlag
 
 RGFWDEF void RGFW_window_basic_init(RGFW_window* win, RGFW_rect rect, RGFW_windowFlags flags);
 
+#if defined(RGFW_X11) || defined(RGFW_WINDOWS)
+RGFW_mouse* RGFW_hiddenMouse = NULL;
+#endif
+
 /* do a basic initialization for RGFW_window, this is to standard it for each OS */
 void RGFW_window_basic_init(RGFW_window* win, RGFW_rect rect, RGFW_windowFlags flags) {
 	/* clear out dnd info */
@@ -1734,6 +1760,13 @@ void RGFW_window_basic_init(RGFW_window* win, RGFW_rect rect, RGFW_windowFlags f
 	/* rect based the requested flags */
 	if (flags & RGFW_windowFullscreen)
 		rect = RGFW_RECT(0, 0, screenR.w, screenR.h);
+
+	#if defined(RGFW_X11) || defined(RGFW_WINDOWS)
+	if (RGFW_hiddenMouse == NULL) {
+		u8 RGFW_blk[] = { 0, 0, 0, 0 };
+		RGFW_hiddenMouse = RGFW_loadMouse(RGFW_blk, RGFW_AREA(1, 1), 4);
+	}
+	#endif
 
 	/* set and init the new window's data */
 	win->r = rect;
@@ -1952,14 +1985,8 @@ RGFW_gamepadType RGFW_getGamepadType(RGFW_window* win, u16 controller) {
 
 #if defined(RGFW_X11) || defined(RGFW_WINDOWS)
 void RGFW_window_showMouse(RGFW_window* win, i8 show) {
-	static void* mouse = NULL;
-	if (mouse == NULL) {
-		u8 RGFW_blk[] = { 0, 0, 0, 0 };
-		mouse = RGFW_loadMouse(RGFW_blk, RGFW_AREA(1, 1), 4);
-	}
-
 	if (show == 0)
-		RGFW_window_setMouse(win, mouse);
+		RGFW_window_setMouse(win, RGFW_hiddenMouse);
 	else
 		RGFW_window_setMouseDefault(win);
 }
@@ -2491,7 +2518,7 @@ This is where OS specific stuff starts
 							else if (RGFW_gamepads_type[i] == RGFW_gamepadLogitech) typeIndex = 2;
 
 							win->event.type = e.value ? RGFW_gamepadButtonPressed : RGFW_gamepadButtonReleased;
-							u8 RGFW_linux2RGFW[2][RGFW_gamepadR3 + 8] = {{ /* ps */
+							u8 RGFW_linux2RGFW[3][RGFW_gamepadR3 + 8] = {{ /* ps */
 									RGFW_gamepadA, RGFW_gamepadB, RGFW_gamepadY, RGFW_gamepadX, RGFW_gamepadL1, RGFW_gamepadR1, RGFW_gamepadL2, RGFW_gamepadR2,
 									RGFW_gamepadSelect, RGFW_gamepadStart, RGFW_gamepadHome, RGFW_gamepadL3, RGFW_gamepadR3, RGFW_gamepadUp, RGFW_gamepadDown, RGFW_gamepadLeft, RGFW_gamepadRight,
 								},{ /* xbox */
@@ -2596,8 +2623,9 @@ Start of Linux / Unix defines
 u8 RGFW_mouseIconSrc[] = { XC_arrow, XC_left_ptr, XC_xterm, XC_crosshair, XC_hand2, XC_sb_h_double_arrow, XC_sb_v_double_arrow, XC_bottom_left_corner, XC_bottom_right_corner, XC_fleur, XC_X_cursor};
 /*atoms needed for drag and drop*/
 Atom XdndAware, XdndTypeList, XdndSelection, XdndEnter, XdndPosition, XdndStatus, XdndLeave, XdndDrop, XdndFinished, XdndActionCopy, XtextPlain, XtextUriList;
+Atom RGFW_XUTF8_STRING = 0;
 
-Atom wm_delete_window = 0;
+Atom wm_delete_window = 0, RGFW_XCLIPBOARD = 0;
 
 #if !defined(RGFW_NO_X11_CURSOR) && !defined(RGFW_NO_X11_CURSOR_PRELOAD)
 	typedef XcursorImage* (*PFN_XcursorImageCreate)(int, int);
@@ -2610,20 +2638,20 @@ Atom wm_delete_window = 0;
 
 #if !defined(RGFW_NO_X11_XI_PRELOAD)
 	typedef int (* PFN_XISelectEvents)(Display*,Window,XIEventMask*,int);
-	PFN_XISelectEvents XISelectEventsSrc = NULL;
-	#define XISelectEvents XISelectEventsSrc
+	PFN_XISelectEvents XISelectEventsSRC = NULL;
+	#define XISelectEvents XISelectEventsSRC
 
 	void* X11Xihandle = NULL;
 #endif
 
 #if !defined(RGFW_NO_X11_CURSOR) && !defined(RGFW_NO_X11_CURSOR_PRELOAD)
-	PFN_XcursorImageLoadCursor XcursorImageLoadCursorSrc = NULL;
-	PFN_XcursorImageCreate XcursorImageCreateSrc = NULL;
-	PFN_XcursorImageDestroy XcursorImageDestroySrc = NULL;
+	PFN_XcursorImageLoadCursor XcursorImageLoadCursorSRC = NULL;
+	PFN_XcursorImageCreate XcursorImageCreateSRC = NULL;
+	PFN_XcursorImageDestroy XcursorImageDestroySRC = NULL;
 
-	#define XcursorImageLoadCursor XcursorImageLoadCursorSrc
-	#define XcursorImageCreate XcursorImageCreateSrc
-	#define XcursorImageDestroy XcursorImageDestroySrc
+	#define XcursorImageLoadCursor XcursorImageLoadCursorSRC
+	#define XcursorImageCreate XcursorImageCreateSRC
+	#define XcursorImageDestroy XcursorImageDestroySRC
 
 	void* X11Cursorhandle = NULL;
 #endif
@@ -2667,11 +2695,12 @@ void RGFW_init_buffer(RGFW_window* win, XVisualInfo* vi) {
 	#endif
 }
 
+#define RGFW_LOAD_ATOM(name) \
+	static Atom name = 0; \
+	if (name == 0) name = XInternAtom((Display*) RGFW_root->src.display, #name, False);
 
 void RGFW_window_setBorder(RGFW_window* win, u8 border) {
-	static Atom _MOTIF_WM_HINTS = 0;
-	if (_MOTIF_WM_HINTS == 0 )
-		_MOTIF_WM_HINTS = XInternAtom(win->src.display, "_MOTIF_WM_HINTS", False);
+	RGFW_LOAD_ATOM(_MOTIF_WM_HINTS);
 
 	struct __x11WindowHints {
 		unsigned long flags, functions, decorations, status;
@@ -2716,39 +2745,36 @@ void RGFW_captureCursor(RGFW_window* win, RGFW_rect r) {
 	RGFW_window_moveMouse(win, RGFW_POINT(win->r.x + (i32)(r.w / 2), win->r.y + (i32)(r.h / 2)));
 }
 
+#define RGFW_LOAD_LIBRARY(x, lib) if (x == NULL) x = dlopen(lib, RTLD_LAZY | RTLD_LOCAL)
+#define RGFW_PROC_DEF(proc, name) if (name##SRC == NULL && proc != NULL) name##SRC = (PFN_##name)(void*)dlsym(proc, #name)
+
 RGFW_window* RGFW_createWindowPtr(const char* name, RGFW_rect rect, RGFW_windowFlags flags, RGFW_window* win) {
 	#ifdef RGFW_USE_XDL
 		XDL_init();
 	#endif
 
 	#if !defined(RGFW_NO_X11_CURSOR) && !defined(RGFW_NO_X11_CURSOR_PRELOAD)
-			if (X11Cursorhandle == NULL) {
 	#if defined(__CYGWIN__)
-				X11Cursorhandle = dlopen("libXcursor-1.so", RTLD_LAZY | RTLD_LOCAL);
+				RGFW_LOAD_LIBRARY(X11Cursorhandle, "libXcursor-1.so");
 	#elif defined(__OpenBSD__) || defined(__NetBSD__)
-				X11Cursorhandle = dlopen("libXcursor.so", RTLD_LAZY | RTLD_LOCAL);
+				RGFW_LOAD_LIBRARY(X11Cursorhandle, "libXcursor.so");
 	#else
-				X11Cursorhandle = dlopen("libXcursor.so.1", RTLD_LAZY | RTLD_LOCAL);
+				RGFW_LOAD_LIBRARY(X11Cursorhandle, "libXcursor.so.1");
 	#endif
-
-		XcursorImageCreateSrc = (PFN_XcursorImageCreate) dlsym(X11Cursorhandle, "XcursorImageCreate");
-		XcursorImageDestroySrc = (PFN_XcursorImageDestroy) dlsym(X11Cursorhandle, "XcursorImageDestroy");
-		XcursorImageLoadCursorSrc = (PFN_XcursorImageLoadCursor) dlsym(X11Cursorhandle, "XcursorImageLoadCursor");
-	}
+		RGFW_PROC_DEF(X11Cursorhandle, XcursorImageCreate);
+		RGFW_PROC_DEF(X11Cursorhandle, XcursorImageDestroy);
+		RGFW_PROC_DEF(X11Cursorhandle, XcursorImageLoadCursor);
 	#endif
 
 	#if !defined(RGFW_NO_X11_XI_PRELOAD)
-		if (X11Xihandle == NULL) {
 	#if defined(__CYGWIN__)
-			X11Xihandle = dlopen("libXi-6.so", RTLD_LAZY | RTLD_LOCAL);
+			RGFW_LOAD_LIBRARY(X11Xihandle, "libXi-6.so");
 	#elif defined(__OpenBSD__) || defined(__NetBSD__)
-			X11Xihandle = dlopen("libXi.so", RTLD_LAZY | RTLD_LOCAL);
+			RGFW_LOAD_LIBRARY(X11Xihandle, "libXi.so");
 	#else
-			X11Xihandle = dlopen("libXi.so.6", RTLD_LAZY | RTLD_LOCAL);
+			RGFW_LOAD_LIBRARY(X11Xihandle, "libXi.so.6");
 	#endif
-
-			XISelectEventsSrc = (PFN_XISelectEvents) dlsym(X11Xihandle, "XISelectEvents");
-		}
+			RGFW_PROC_DEF(X11Xihandle, XISelectEvents);
 	#endif
 
 	XInitThreads(); /*!< init X11 threading*/
@@ -2846,13 +2872,11 @@ RGFW_window* RGFW_createWindowPtr(const char* name, RGFW_rect rect, RGFW_windowF
 
 	if (RGFW_className == NULL)
 		RGFW_className = (char*)name;
-
-	XClassHint *hint = XAllocClassHint();
-	RGFW_ASSERT(hint != NULL);
-	hint->res_class = (char*)RGFW_className;
-	hint->res_name = (char*)name; // just use the window name as the app name
-	XSetClassHint((Display*) win->src.display, win->src.window, hint);
-	XFree(hint);
+	
+	XClassHint hint;
+	hint.res_class = (char*)RGFW_className;
+	hint.res_name = (char*)name; // just use the window name as the app name
+	XSetClassHint((Display*) win->src.display, win->src.window, &hint);
 
 	if ((flags & RGFW_windowNoInitAPI) == 0) {
 	#ifdef RGFW_OPENGL /* This is the second part of setting up opengl. This is where we ask OpenGL for a specific version. */
@@ -2915,8 +2939,11 @@ RGFW_window* RGFW_createWindowPtr(const char* name, RGFW_rect rect, RGFW_windowF
 	XSelectInput((Display*) win->src.display, (Drawable) win->src.window, event_mask); /*!< tell X11 what events we want*/
 
 	/* make it so the user can't close the window until the program does*/
-	if (wm_delete_window == 0)
+	if (wm_delete_window == 0) {
 		wm_delete_window = XInternAtom((Display*) win->src.display, "WM_DELETE_WINDOW", False);
+		RGFW_XUTF8_STRING = XInternAtom((Display*) RGFW_root->src.display, "UTF8_STRING", False);
+		RGFW_XCLIPBOARD = XInternAtom((Display*) RGFW_root->src.display, "CLIPBOARD", False);
+	}
 
 	XSetWMProtocols((Display*) win->src.display, (Drawable) win->src.window, &wm_delete_window, 1);
 
@@ -2927,7 +2954,7 @@ RGFW_window* RGFW_createWindowPtr(const char* name, RGFW_rect rect, RGFW_windowF
 	#endif
 
 	/* set the background*/
-	XStoreName((Display*) win->src.display, (Drawable) win->src.window, name); /*!< set the name*/
+	RGFW_window_setName(win, name);
 
 	XMapWindow((Display*) win->src.display, (Drawable) win->src.window);						  /* draw the window*/
 	XMoveWindow((Display*) win->src.display, (Drawable) win->src.window, win->r.x, win->r.y); /*!< move the window to it's proper cords*/
@@ -3091,7 +3118,6 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 		return NULL;
 	}
 
-	u32 i;
 	win->event.type = 0;
 	XEvent reply = { ClientMessage };
 
@@ -3215,20 +3241,17 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 		RGFW_windowRefreshCallback(win);
 		break;
 
-	case ClientMessage:
+	case ClientMessage: {
 		/* if the client closed the window*/
-		if (E.xclient.data.l[0] == (i64) wm_delete_window) {
+		if (E.xclient.data.l[0] == (long)wm_delete_window) {
 			win->event.type = RGFW_quit;
 			RGFW_windowQuitCallback(win);
 			break;
 		}
 
-		/* reset DND values */
-		if (win->event.droppedFilesCount) {
-			for (i = 0; i < win->event.droppedFilesCount; i++)
-				win->event.droppedFiles[i][0] = '\0';
+		for (size_t i = 0; i < win->event.droppedFilesCount; i++) {
+			win->event.droppedFiles[i][0] = '\0';
 		}
-
 		win->event.droppedFilesCount = 0;
 
 		if ((win->_flags & RGFW_windowAllowDND) == 0)
@@ -3236,59 +3259,51 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 
 		reply.xclient.window = xdnd.source;
 		reply.xclient.format = 32;
-		reply.xclient.data.l[0] = (long) win->src.window;
+		reply.xclient.data.l[0] = (long)win->src.window;
 		reply.xclient.data.l[1] = 0;
 		reply.xclient.data.l[2] = None;
 
 		if (E.xclient.message_type == XdndEnter) {
+			if (xdnd.version > 5)
+				break;
+
 			unsigned long count;
 			Atom* formats;
 			Atom real_formats[6];
-
 			Bool list = E.xclient.data.l[1] & 1;
 
-			xdnd.source = E.xclient.data.l[0];
+			xdnd.source = (Window)E.xclient.data.l[0];
 			xdnd.version = E.xclient.data.l[1] >> 24;
-
 			xdnd.format = None;
 
-			if (xdnd.version > 5)
-				break;
 
 			if (list) {
 				Atom actualType;
 				i32 actualFormat;
 				unsigned long bytesAfter;
 
-				XGetWindowProperty((Display*) win->src.display,
-					xdnd.source,
-					XdndTypeList,
-					0,
-					LONG_MAX,
-					False,
-					4,
-					&actualType,
-					&actualFormat,
-					&count,
-					&bytesAfter,
-					(u8**) &formats);
+				XGetWindowProperty(
+					win->src.display, xdnd.source, XdndTypeList,
+					0, LONG_MAX, False, 4,
+					&actualType, &actualFormat, &count, &bytesAfter, (u8**)&formats
+				);
 			} else {
 				count = 0;
 
-				if (E.xclient.data.l[2] != None)
-					real_formats[count++] = E.xclient.data.l[2];
-				if (E.xclient.data.l[3] != None)
-					real_formats[count++] = E.xclient.data.l[3];
-				if (E.xclient.data.l[4] != None)
-					real_formats[count++] = E.xclient.data.l[4];
+				for (size_t i = 2; i < 5; i++) {
+					Window format = (Window)E.xclient.data.l[i];
+					if (format != None) {
+						real_formats[count] = format;
+						count += 1;
+					}
+				}
 
 				formats = real_formats;
 			}
 
-			unsigned long i;
-			for (i = 0; i < count; i++) {
+			for (size_t i = 0; i < count; i++) {
 				if (formats[i] == XtextUriList || formats[i] == XtextPlain) {
-					xdnd.format = formats[i];
+					xdnd.format = (int)formats[i];
 					break;
 				}
 			}
@@ -3299,6 +3314,7 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 
 			break;
 		}
+
 		if (E.xclient.message_type == XdndPosition) {
 			const i32 xabs = (E.xclient.data.l[2] >> 16) & 0xffff;
 			const i32 yabs = (E.xclient.data.l[2]) & 0xffff;
@@ -3308,12 +3324,10 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 			if (xdnd.version > 5)
 				break;
 
-			XTranslateCoordinates((Display*) win->src.display,
-				XDefaultRootWindow((Display*) win->src.display),
-				(Window) win->src.window,
-				xabs, yabs,
-				&xpos, &ypos,
-				&dummy);
+			XTranslateCoordinates(
+				win->src.display, XDefaultRootWindow(win->src.display), win->src.window,
+				xabs, yabs, &xpos, &ypos, &dummy
+			);
 
 			win->event.point.x = xpos;
 			win->event.point.y = ypos;
@@ -3324,7 +3338,7 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 			if (xdnd.format) {
 				reply.xclient.data.l[1] = 1;
 				if (xdnd.version >= 2)
-					reply.xclient.data.l[4] = XdndActionCopy;
+					reply.xclient.data.l[4] = (long)XdndActionCopy;
 			}
 
 			XSendEvent((Display*) win->src.display, xdnd.source, False, NoEventMask, &reply);
@@ -3341,27 +3355,23 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 		win->event.type = RGFW_DNDInit;
 
 		if (xdnd.format) {
-			Time time = CurrentTime;
+			Time time = (xdnd.version >= 1)
+				? (Time)E.xclient.data.l[2]
+				: CurrentTime;
 
-			if (xdnd.version >= 1)
-				time = E.xclient.data.l[2];
-
-			XConvertSelection((Display*) win->src.display,
-				XdndSelection,
-				xdnd.format,
-				XdndSelection,
-				(Window) win->src.window,
-				time);
+			XConvertSelection(
+				win->src.display, XdndSelection, (Atom)xdnd.format,
+				XdndSelection, win->src.window, time
+			);
 		} else if (xdnd.version >= 2) {
 			XEvent reply = { ClientMessage };
 
-			XSendEvent((Display*) win->src.display, xdnd.source,
-				False, NoEventMask, &reply);
-			XFlush((Display*) win->src.display);
+			XSendEvent(win->src.display, xdnd.source, False, NoEventMask, &reply);
+			XFlush(win->src.display);
 		}
 
 		RGFW_dndInitCallback(win, win->event.point);
-		break;
+	} break;
 	case SelectionNotify: {
 		/* this is only for checking for xdnd drops */
 		if (E.xselection.property != XdndSelection || !(win->_flags | RGFW_windowAllowDND))
@@ -3378,13 +3388,7 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 
 		if (result == 0)
 			break;
-
-		/*
-		SOURCED FROM GLFW _glfwParseUriList
-		Copyright (c) 2002-2006 Marcus Geelnard
-		Copyright (c) 2006-2019 Camilla Löwy
-		*/
-
+		
 		const char* prefix = (const char*)"file://";
 
 		char* line;
@@ -3456,14 +3460,11 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 		win->event.type = RGFW_focusIn;
 		RGFW_focusCallback(win, 1);
 		break;
-
-		break;
 	case FocusOut:
 		win->event.inFocus = 0;
 		win->event.type = RGFW_focusOut;
 		RGFW_focusCallback(win, 0);
 		break;
-
 	case EnterNotify: {
 		win->event.type = RGFW_mouseEnter;
 		win->event.point.x = E.xcrossing.x;
@@ -3479,23 +3480,23 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 	}
 
 	case ConfigureNotify: {
-			/* detect resize */
-			if (E.xconfigure.width != win->r.w || E.xconfigure.height != win->r.h) {
-				win->event.type = RGFW_windowResized;
-				win->r = RGFW_RECT(win->r.x, win->r.y, E.xconfigure.width, E.xconfigure.height);
-				RGFW_windowResizeCallback(win, win->r);
-				break;
-			}
-
-			/* detect move */
-			if (E.xconfigure.x != win->r.x || E.xconfigure.y != win->r.y) {
-				win->event.type = RGFW_windowMoved;
-				win->r = RGFW_RECT(E.xconfigure.x, E.xconfigure.y, win->r.w, win->r.h);
-				RGFW_windowMoveCallback(win, win->r);
-				break;
-			}
-
+		/* detect resize */
+		if (E.xconfigure.width != win->r.w || E.xconfigure.height != win->r.h) {
+			win->event.type = RGFW_windowResized;
+			win->r = RGFW_RECT(win->r.x, win->r.y, E.xconfigure.width, E.xconfigure.height);
+			RGFW_windowResizeCallback(win, win->r);
 			break;
+		}
+
+		/* detect move */
+		if (E.xconfigure.x != win->r.x || E.xconfigure.y != win->r.y) {
+			win->event.type = RGFW_windowMoved;
+			win->r = RGFW_RECT(E.xconfigure.x, E.xconfigure.y, win->r.w, win->r.h);
+			RGFW_windowMoveCallback(win, win->r);
+			break;
+		}
+
+		break;
 	}
 	default:
 		XFlush((Display*) win->src.display);
@@ -3592,9 +3593,15 @@ void RGFW_window_restore(RGFW_window* win) {
 }
 
 void RGFW_window_setName(RGFW_window* win, const char* name) {
-	RGFW_ASSERT(win != NULL);
+	assert(win);
 
-	XStoreName((Display*) win->src.display, (Window) win->src.window, name);
+	XStoreName(win->src.display, win->src.window, name);
+
+	RGFW_LOAD_ATOM(_NET_WM_NAME);
+	XChangeProperty(
+		win->src.display, win->src.window, _NET_WM_NAME, RGFW_XUTF8_STRING,
+		8, PropModeReplace, (u8*)name, 256
+	);
 }
 
 void* RGFW_libxshape = NULL;
@@ -3605,34 +3612,31 @@ void RGFW_window_setMousePassthrough(RGFW_window* win, b8 passthrough) {
 	RGFW_ASSERT(win != NULL);
 
 	#if defined(__CYGWIN__)
-		RGFW_libxshape = dlopen("libXext-6.so", RTLD_LAZY | RTLD_LOCAL);
+		RGFW_LOAD_LIBRARY(RGFW_libxshape, "libXext-6.so");
 	#elif defined(__OpenBSD__) || defined(__NetBSD__)
-		RGFW_libxshape = dlopen("libXext.so", RTLD_LAZY | RTLD_LOCAL);
+		RGFW_LOAD_LIBRARY(RGFW_libxshape, "libXext.so");
 	#else
-		RGFW_libxshape = dlopen("libXext.so.6", RTLD_LAZY | RTLD_LOCAL);
+		RGFW_LOAD_LIBRARY(RGFW_libxshape, "libXext.so.6");
 	#endif
 
 	typedef void (* PFN_XShapeCombineMask)(Display*,Window,int,int,int,Pixmap,int);
-	static PFN_XShapeCombineMask XShapeCombineMask;
+	static PFN_XShapeCombineMask XShapeCombineMaskSRC;
 
 	typedef void (* PFN_XShapeCombineRegion)(Display*,Window,int,int,int,Region,int);
-	static PFN_XShapeCombineRegion XShapeCombineRegion;
+	static PFN_XShapeCombineRegion XShapeCombineRegionSRC;
 
-	if (XShapeCombineMask != NULL)
-		XShapeCombineMask = (PFN_XShapeCombineMask) dlsym(RGFW_libxshape, "XShapeCombineMask");
-
-	if (XShapeCombineRegion != NULL)
-		XShapeCombineRegion = (PFN_XShapeCombineRegion) dlsym(RGFW_libxshape, "XShapeCombineMask");
+	RGFW_PROC_DEF(RGFW_libxshape, XShapeCombineRegion);
+	RGFW_PROC_DEF(RGFW_libxshape, XShapeCombineMask);
 
 	if (passthrough) {
 		Region region = XCreateRegion();
-		XShapeCombineRegion(win->src.display, win->src.window, ShapeInput, 0, 0, region, ShapeSet);
+		XShapeCombineRegionSRC(win->src.display, win->src.window, ShapeInput, 0, 0, region, ShapeSet);
 		XDestroyRegion(region);
 
 		return;
 	}
 
-	XShapeCombineMask(win->src.display, win->src.window, ShapeInput, 0, 0, None, ShapeSet);
+	XShapeCombineMaskSRC(win->src.display, win->src.window, ShapeInput, 0, 0, None, ShapeSet);
 }
 
 #endif /* RGFW_NO_PASSTHROUGH */
@@ -3663,12 +3667,10 @@ b32 RGFW_window_setIcon(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) {
 		}
 	}
 
-	static Atom NET_WM_ICON = 0;
-	if (NET_WM_ICON == 0)
-		NET_WM_ICON = XInternAtom((Display*) win->src.display, "_NET_WM_ICON", False);
+	RGFW_LOAD_ATOM(_NET_WM_ICON);
 
 	b32 res = (b32)XChangeProperty(
-		win->src.display, win->src.window, NET_WM_ICON, XA_CARDINAL, 32,
+		win->src.display, win->src.window, _NET_WM_ICON, XA_CARDINAL, 32,
 		PropModeReplace, (u8*)data, count
 	);
 
@@ -3765,77 +3767,47 @@ void RGFW_window_show(RGFW_window* win) {
 	XUnmapWindow(win->src.display, win->src.window);
 }
 
-/*
-	the majority function is sourced from GLFW
-*/
-const char* RGFW_readClipboard(size_t* size) {
-	static Atom UTF8 = 0;
-	if (UTF8 == 0)
-		UTF8 = XInternAtom(RGFW_root->src.display, "UTF8_STRING", True);
-
+RGFW_ssize_t RGFW_readClipboardPtr(char* str, size_t strCapacity) {
 	XEvent event;
 	int format;
 	unsigned long N, sizeN;
-	char* data, * s = NULL;
+	char* data;
 	Atom target;
-	Atom CLIPBOARD = 0, XSEL_DATA = 0;
 
-	if (CLIPBOARD == 0) {
-		CLIPBOARD = XInternAtom(RGFW_root->src.display, "CLIPBOARD", 0);
-		XSEL_DATA = XInternAtom(RGFW_root->src.display, "XSEL_DATA", 0);
-	}
+	RGFW_LOAD_ATOM(XSEL_DATA);
 
-	XConvertSelection(RGFW_root->src.display, CLIPBOARD, UTF8, XSEL_DATA, RGFW_root->src.window, CurrentTime);
+	XConvertSelection(RGFW_root->src.display, RGFW_XCLIPBOARD, RGFW_XUTF8_STRING, XSEL_DATA, RGFW_root->src.window, CurrentTime);
 	XSync(RGFW_root->src.display, 0);
 	XNextEvent(RGFW_root->src.display, &event);
 
-	if (event.type != SelectionNotify || event.xselection.selection != CLIPBOARD || event.xselection.property == 0)
-		return NULL;
+	if (event.type != SelectionNotify || event.xselection.selection != RGFW_XCLIPBOARD || event.xselection.property == 0)
+		return -1;
 
 	XGetWindowProperty(event.xselection.display, event.xselection.requestor,
 		event.xselection.property, 0L, (~0L), 0, AnyPropertyType, &target,
 		&format, &sizeN, &N, (unsigned char**) &data);
 
-	if (target == UTF8 || target == XA_STRING) {
-		s = (char*)RGFW_alloc(sizeof(char) * sizeN);
-		RGFW_MEMCPY(s, data, sizeN);
-		s[sizeN] = '\0';
+	if (sizeN > strCapacity && str != NULL)
+		sizeN = -1;
+
+	if ((target == RGFW_XUTF8_STRING || target == XA_STRING) && str != NULL) {
+		RGFW_MEMCPY(str, data, sizeN);
+		str[sizeN] = '\0';
 		XFree(data);
-	}
+	} else if (str != NULL) return -1;
 
 	XDeleteProperty(event.xselection.display, event.xselection.requestor, event.xselection.property);
-
-	if (s != NULL && size != NULL)
-		*size = sizeN;
-
-	RGFW_clipboard_switch(s);
-
-	return s;
+	return sizeN;
 }
 
-/*
-	almost all of this function is sourced from GLFW
-*/
 void RGFW_writeClipboard(const char* text, u32 textLen) {
-	static Atom CLIPBOARD = 0,
-		UTF8_STRING = 0,
-		SAVE_TARGETS = 0,
-		TARGETS = 0,
-		MULTIPLE = 0,
-		ATOM_PAIR = 0,
-		CLIPBOARD_MANAGER = 0;
+	RGFW_LOAD_ATOM(SAVE_TARGETS);
+	RGFW_LOAD_ATOM(TARGETS);
+	RGFW_LOAD_ATOM(MULTIPLE);
+	RGFW_LOAD_ATOM(ATOM_PAIR);
+	RGFW_LOAD_ATOM(CLIPBOARD_MANAGER);
 
-	if (CLIPBOARD == 0) {
-		CLIPBOARD = XInternAtom((Display*) RGFW_root->src.display, "CLIPBOARD", False);
-		UTF8_STRING = XInternAtom((Display*) RGFW_root->src.display, "UTF8_STRING", False);
-		SAVE_TARGETS = XInternAtom((Display*) RGFW_root->src.display, "SAVE_TARGETS", False);
-		TARGETS = XInternAtom((Display*) RGFW_root->src.display, "TARGETS", False);
-		MULTIPLE = XInternAtom((Display*) RGFW_root->src.display, "MULTIPLE", False);
-		ATOM_PAIR = XInternAtom((Display*) RGFW_root->src.display, "ATOM_PAIR", False);
-		CLIPBOARD_MANAGER = XInternAtom((Display*) RGFW_root->src.display, "CLIPBOARD_MANAGER", False);
-	}
-
-	XSetSelectionOwner((Display*) RGFW_root->src.display, CLIPBOARD, (Window) RGFW_root->src.window, CurrentTime);
+	XSetSelectionOwner((Display*) RGFW_root->src.display, RGFW_XCLIPBOARD, (Window) RGFW_root->src.window, CurrentTime);
 
 	XConvertSelection((Display*) RGFW_root->src.display, CLIPBOARD_MANAGER, SAVE_TARGETS, None, (Window) RGFW_root->src.window, CurrentTime);
 	for (;;) {
@@ -3854,7 +3826,7 @@ void RGFW_writeClipboard(const char* text, u32 textLen) {
 		if (request->target == TARGETS) {
 			const Atom targets[] = { TARGETS,
 									MULTIPLE,
-									UTF8_STRING,
+									RGFW_XUTF8_STRING,
 									XA_STRING };
 
 			XChangeProperty((Display*) RGFW_root->src.display,
@@ -3880,7 +3852,7 @@ void RGFW_writeClipboard(const char* text, u32 textLen) {
 
 			unsigned long i;
 			for (i = 0; i < (u32)count; i += 2) {
-				if (targets[i] == UTF8_STRING || targets[i] == XA_STRING) {
+				if (targets[i] == RGFW_XUTF8_STRING || targets[i] == XA_STRING) {
 					XChangeProperty((Display*) RGFW_root->src.display,
 						request->requestor,
 						targets[i + 1],
@@ -3949,16 +3921,14 @@ u8 RGFW_window_isHidden(RGFW_window* win) {
 u8 RGFW_window_isMinimized(RGFW_window* win) {
 	RGFW_ASSERT(win != NULL);
 
-	static Atom prop = 0;
-	if (prop == 0)
-		prop = XInternAtom(win->src.display, "WM_STATE", False);
+	RGFW_LOAD_ATOM(WM_STATE);
 
 	Atom actual_type;
 	i32 actual_format;
 	unsigned long nitems, bytes_after;
 	unsigned char* prop_data;
 
-	i16 status = XGetWindowProperty(win->src.display, (Window) win->src.window, prop, 0, 2, False,
+	i16 status = XGetWindowProperty(win->src.display, (Window) win->src.window, WM_STATE, 0, 2, False,
 		AnyPropertyType, &actual_type, &actual_format,
 		&nitems, &bytes_after, &prop_data);
 
@@ -3975,23 +3945,16 @@ u8 RGFW_window_isMinimized(RGFW_window* win) {
 
 u8 RGFW_window_isMaximized(RGFW_window* win) {
 	RGFW_ASSERT(win != NULL);
-
-	static Atom net_wm_state = 0;
-	static Atom net_wm_state_maximized_horz = 0;
-	static Atom net_wm_state_maximized_vert = 0;
-
-	if (net_wm_state == 0) {
-		net_wm_state = XInternAtom(win->src.display, "_NET_WM_STATE", False);
-		net_wm_state_maximized_vert = XInternAtom(win->src.display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-		net_wm_state_maximized_horz = XInternAtom(win->src.display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-	}
+	RGFW_LOAD_ATOM(_NET_WM_STATE);
+	RGFW_LOAD_ATOM(_NET_WM_STATE_MAXIMIZED_VERT);
+	RGFW_LOAD_ATOM(_NET_WM_STATE_MAXIMIZED_HORZ);
 
 	Atom actual_type;
 	i32 actual_format;
 	unsigned long nitems, bytes_after;
 	unsigned char* prop_data;
 
-	i16 status = XGetWindowProperty(win->src.display, (Window) win->src.window, net_wm_state, 0, 1024, False,
+	i16 status = XGetWindowProperty(win->src.display, (Window) win->src.window, _NET_WM_STATE, 0, 1024, False,
 		XA_ATOM, &actual_type, &actual_format,
 		&nitems, &bytes_after, &prop_data);
 
@@ -4005,8 +3968,8 @@ u8 RGFW_window_isMaximized(RGFW_window* win) {
 	Atom* atoms = (Atom*) prop_data;
 	u64 i;
 	for (i = 0; i < nitems; ++i) {
-		if (atoms[i] == net_wm_state_maximized_horz ||
-			atoms[i] == net_wm_state_maximized_vert) {
+		if (atoms[i] == _NET_WM_STATE_MAXIMIZED_VERT ||
+			atoms[i] == _NET_WM_STATE_MAXIMIZED_HORZ) {
 			XFree(prop_data);
 			return 1;
 		}
@@ -4342,6 +4305,11 @@ void RGFW_window_close(RGFW_window* win) {
 				close(RGFW_gamepads[i]);
 		}
 		#endif
+
+		if (RGFW_hiddenMouse != NULL) {
+			RGFW_freeMouse(RGFW_hiddenMouse);
+			RGFW_hiddenMouse = 0;
+		}
 	}
 
 	RGFW_clipboard_switch(NULL);
@@ -4741,8 +4709,6 @@ static void keyboard_key (void *data, struct wl_keyboard *keyboard, uint32_t ser
 	RGFW_ASSERT(RGFW_key_win != NULL);
 
 	xkb_keysym_t keysym = xkb_state_key_get_one_sym (xkb_state, key+8);
-	char name[16];
-	xkb_keysym_get_name(keysym, name, 16);
 
 	u32 RGFW_key = RGFW_apiKeyToRGFW(key);
 	RGFW_keyboard[RGFW_key].prev = RGFW_keyboard[RGFW_key].current;
@@ -4757,7 +4723,7 @@ static void keyboard_key (void *data, struct wl_keyboard *keyboard, uint32_t ser
 
 	RGFW_updateKeyMods(RGFW_key_win, xkb_keymap_mod_get_index(keymap, "Lock"), xkb_keymap_mod_get_index(keymap, "Mod2"));
 
-	RGFW_keyCallback(RGFW_key_win, RGFW_key, (u8)keysym, name, RGFW_key_win->event.keyMod, state);
+	RGFW_keyCallback(RGFW_key_win, RGFW_key, (u8)keysym, RGFW_key_win->event.keyMod, state);
 }
 static void keyboard_modifiers (void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
 	RGFW_UNUSED(data); RGFW_UNUSED(keyboard); RGFW_UNUSED(serial); RGFW_UNUSED(time);
@@ -4791,7 +4757,7 @@ static void wl_global_registry_handler(void *data,
 	} else if (RGFW_STRNCMP(interface, "xdg_wm_base", 12) == 0) {
 	xdg_wm_base = wl_registry_bind(registry,
 		id, &xdg_wm_base_interface, 1);
-	} else if (RGFW_STRNCMP(interface, zxdg_decoration_manager_v1_interface.name) == 0) {
+	} else if (RGFW_STRNCMP(interface, zxdg_decoration_manager_v1_interface.name, 255) == 0) {
 		decoration_manager = wl_registry_bind(registry, id, &zxdg_decoration_manager_v1_interface, 1);
     } else if (RGFW_STRNCMP(interface, "wl_shm", 7) == 0) {
         shm = wl_registry_bind(registry,
@@ -5109,8 +5075,12 @@ RGFW_window* RGFW_createWindowPtr(const char* name, RGFW_rect rect, RGFW_windowF
 }
 
 RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
-	if (win->_flags & RGFW_windowWindowHide)
+	if (win->_flags & RGFW_windowHide)
 		return NULL;
+
+	#if defined(__linux__)
+		if (RGFW_linux_updateGamepad(win)) { return &win->event; }
+	#endif
 
 	if (win->src.eventIndex == 0) {
 		if (wl_display_roundtrip(win->src.display) == -1) {
@@ -5118,10 +5088,6 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 		}
 		RGFW_resetKey();
 	}
-
-	#if defined(__linux__)
-		if (RGFW_linux_updateGamepad(win)) return &win->event;
-	#endif
 
 	if (win->src.eventLen == 0) {
 			return NULL;
@@ -5153,21 +5119,21 @@ void RGFW_window_move(RGFW_window* win, RGFW_point v) {
 
 	/* TODO wayland */
 	RGFW_ASSERT(win != NULL);
-	struct wl_pointer *pointer = wl_seat_get_pointer(win->seat);
+	struct wl_pointer *pointer = wl_seat_get_pointer(seat);
 	if (!pointer) {
 		return;
 	}
 
 	// Initiate the move operation
-	wl_shell_surface_move(win->shell_surface, pointer, win->serial);
+	//wl_shell_surface_move(win->src.surface, seat, 0);
 	win->r.x = v.x;
 	win->r.y = v.y;
 
-	wl_display_flush(win->display);
+	wl_display_flush(win->src.display);
 }
 
 b32 RGFW_window_setIcon(RGFW_window* win, u8* src, RGFW_area a, i32 channels) {
-	RGFW_UNUSED(win); RGFW_UNUSED(src); RGFW_UNUSED(a); RGFW_UNUSED(channels)
+	RGFW_UNUSED(win); RGFW_UNUSED(src); RGFW_UNUSED(a); RGFW_UNUSED(channels);
 	/* TODO wayland */
 	return 0;
 }
@@ -5262,8 +5228,8 @@ b32 RGFW_window_setMouseStandard(RGFW_window* win, u8 mouse) {
 	return 1;
 }
 
-void* RGFW_loadMouse(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) {
-	RGFW_UNUSED(image); RGFW_UNUSED(a); RGFW_UNUSED(channels)
+void* RGFW_loadMouse(u8* icon, RGFW_area a, i32 channels) {
+	RGFW_UNUSED(icon); RGFW_UNUSED(a); RGFW_UNUSED(channels);
 	//struct wl_cursor* cursor = wl_cursor_theme_get_cursor(RGFW_wl_cursor_theme, iconStrings[mouse]);
 	//RGFW_cursor_image = icon;
 	struct wl_buffer* cursor_buffer	= wl_cursor_image_get_buffer(RGFW_cursor_image);
@@ -5279,7 +5245,7 @@ void RGFW_window_setMouse(RGFW_window* win, RGFW_mouse* mouse) {
 }
 
 void RGFW_freeMouse(RGFW_mouse* mouse) {
-	GFW_UNUSED(mouse);
+	RGFW_UNUSED(mouse);
 }
 
 void RGFW_window_setName(RGFW_window* win, const char* name) {
@@ -5397,12 +5363,12 @@ void RGFW_writeClipboard(const char* text, u32 textLen) {
 	/* TODO wayland */
 }
 
-const char* RGFW_readClipboard(size_t* size) {
-	RGFW_UNUSED(size);
+RGFW_ssize_t RGFW_readClipboardPtr(char* str, size_t strCapacity) {
+	RGFW_UNUSED(strCapacity); RGFW_UNUSED(str);
 
 	/* TODO wayland */
 
-	return "\0";
+	return 0;
 }
 #endif /* RGFW_WAYLAND */
 
@@ -5725,7 +5691,7 @@ RGFW_window* RGFW_createWindowPtr(const char* name, RGFW_rect rect, RGFW_windowF
 
 	win->src.hOffset = (windowRect.bottom - windowRect.top) - (clientRect.bottom - clientRect.top);
 	win->src.window = CreateWindowA(Class.lpszClassName, name, window_style, win->r.x, win->r.y, win->r.w, win->r.h + win->src.hOffset, 0, 0, inh, 0);
-
+	
 	if (flags & RGFW_windowAllowDND) {
 		win->_flags |= RGFW_windowAllowDND;
 		RGFW_window_setDND(win, 1);
@@ -6498,10 +6464,6 @@ RGFW_event* RGFW_window_checkEvent(RGFW_window* win) {
 			RGFW_mouseButtons[win->event.button].current = 0;
 			RGFW_mouseButtonCallback(win, win->event.button, win->event.scroll, 0);
 			break;
-
-			/*
-				much of this event is source from glfw
-			*/
 		case WM_DROPFILES: {
 			win->event.type = RGFW_DNDInit;
 
@@ -6861,6 +6823,11 @@ void RGFW_window_close(RGFW_window* win) {
 
 		RGFW_FREE_LIBRARY(RGFW_wgl_dll);
 		RGFW_root = NULL;
+
+		if (RGFW_hiddenMouse != NULL) {
+			RGFW_freeMouse(RGFW_hiddenMouse);
+			RGFW_hiddenMouse = 0;
+		}
 	}
 
 	RGFW_clipboard_switch(NULL);
@@ -6892,7 +6859,6 @@ void RGFW_window_setName(RGFW_window* win, const char* name) {
 	SetWindowTextA(win->src.window, name);
 }
 
-/* sourced from GLFW */
 #ifndef RGFW_NO_PASSTHROUGH
 
 void RGFW_window_setMousePassthrough(RGFW_window* win, b8 passthrough) {
@@ -6908,27 +6874,19 @@ void RGFW_window_setMousePassthrough(RGFW_window* win, b8 passthrough) {
 
 	if (passthrough)
 		exStyle |= (WS_EX_TRANSPARENT | WS_EX_LAYERED);
-	else
-	{
+	else {
 		exStyle &= ~WS_EX_TRANSPARENT;
-		// NOTE: Window opacity also needs the layered window style so do not
-		//       remove it if the window is alpha blended
-		if (exStyle & WS_EX_LAYERED)
-		{
-			if (!(flags & LWA_ALPHA))
-				exStyle &= ~WS_EX_LAYERED;
-		}
+		if (exStyle & WS_EX_LAYERED && !(flags & LWA_ALPHA))
+			exStyle &= ~WS_EX_LAYERED;
 	}
 
 	SetWindowLongW(win->src.window, GWL_EXSTYLE, exStyle);
 
-	if (passthrough) {
+	if (passthrough)
 		SetLayeredWindowAttributes(win->src.window, key, alpha, flags);
-	}
 }
 #endif
 
-/* much of this function is sourced from GLFW */
 b32 RGFW_window_setIcon(RGFW_window* win, u8* src, RGFW_area a, i32 channels) {
 	RGFW_ASSERT(win != NULL);
 	#ifndef RGFW_WIN95
@@ -6948,44 +6906,43 @@ b32 RGFW_window_setIcon(RGFW_window* win, u8* src, RGFW_area a, i32 channels) {
 	#endif
 }
 
-const char* RGFW_readClipboard(size_t* size) {
+RGFW_ssize_t RGFW_readClipboardPtr(char* str, size_t strCapacity) {
 	/* Open the clipboard */
 	if (OpenClipboard(NULL) == 0)
-		return (char*) "";
+		return -1;
 
 	/* Get the clipboard data as a Unicode string */
 	HANDLE hData = GetClipboardData(CF_UNICODETEXT);
 	if (hData == NULL) {
 		CloseClipboard();
-		return (char*) "";
+		return -1;	
 	}
 
 	wchar_t* wstr = (wchar_t*) GlobalLock(hData);
-	char* text;
+
+	size_t textLen = 0;
 
 	{
 		setlocale(LC_ALL, "en_US.UTF-8");
 
-
-		size_t textLen = wcstombs(NULL, wstr, 0);
-		if (textLen == 0)
-			return (char*) "";
-
-		text = (char*) RGFW_alloc((textLen * sizeof(char)) + 1);
-		wcstombs(text, wstr, (textLen) +1);
-
-		if (size != NULL)
-			*size = textLen + 1;
-		text[textLen] = '\0';
-
-		RGFW_clipboard_switch(text);
+		textLen = wcstombs(NULL, wstr, 0) + 1;
+		if (str != NULL && strCapacity <= textLen - 1)
+			textLen = 0;
+		
+		if (str != NULL && textLen) {
+			
+			if (textLen > 1)
+				wcstombs(str, wstr, (textLen) );
+			
+			str[textLen] = '\0';
+		}
 	}
 
 	/* Release the clipboard data */
 	GlobalUnlock(hData);
 	CloseClipboard();
 
-	return text;
+	return textLen;
 }
 
 void RGFW_writeClipboard(const char* text, u32 textLen) {
@@ -7259,9 +7216,7 @@ unsigned char* NSBitmapImageRep_bitmapData(id imageRep) {
 	return ((unsigned char* (*)(id, SEL))objc_msgSend) ((id)imageRep, sel_registerName("bitmapData"));
 }
 
-#define NS_ENUM(type, name) type name; enum
-
-typedef NS_ENUM(NSUInteger, NSBitmapFormat) {
+typedef RGFW_ENUM(NSUInteger, NSBitmapFormat) {
 	NSBitmapFormatAlphaFirst = 1 << 0,       // 0 means is alpha last (RGBA, CMYKA, etc.)
 		NSBitmapFormatAlphaNonpremultiplied = 1 << 1,       // 0 means is premultiplied
 		NSBitmapFormatFloatingpointSamples = 1 << 2,  // 0 is integer
@@ -7305,7 +7260,7 @@ id NSImage_initWithSize(NSSize size) {
 		(NSAlloc((id)objc_getClass("NSImage")), func, size);
 }
 #define NS_OPENGL_ENUM_DEPRECATED(minVers, maxVers) API_AVAILABLE(macos(minVers))
-typedef NS_ENUM(NSInteger, NSOpenGLContextParameter) {
+typedef RGFW_ENUM(NSInteger, NSOpenGLContextParameter) {
 	NSOpenGLContextParameterSwapInterval           NS_OPENGL_ENUM_DEPRECATED(10.0, 10.14) = 222, /* 1 param.  0 -> Don't sync, 1 -> Sync to vertical retrace     */
 		NSOpenGLContextParametectxaceOrder           NS_OPENGL_ENUM_DEPRECATED(10.0, 10.14) = 235, /* 1 param.  1 -> Above Window (default), -1 -> Below Window    */
 		NSOpenGLContextParametectxaceOpacity         NS_OPENGL_ENUM_DEPRECATED(10.0, 10.14) = 236, /* 1 param.  1-> Surface is opaque (default), 0 -> non-opaque   */
@@ -7367,7 +7322,7 @@ const char* NSPasteboard_stringForType(id pasteboard, NSPasteboardType dataType,
 	id nsString = ((id(*)(id, SEL, id))objc_msgSend)(pasteboard, func, nsstr);
 	const char* str = NSString_to_char(nsString);
 	if (len != NULL)
-		*len = (size_t)((NSUInteger(*)(id, SEL))objc_msgSend)(nsString, sel_registerName("length"));
+		*len = (size_t)((NSUInteger(*)(id, SEL, int))objc_msgSend)(nsString, sel_registerName("maximumLengthOfBytesUsingEncoding:"), 4);
 	return str;
 }
 
@@ -7414,13 +7369,13 @@ typedef enum NSApplicationActivationPolicy {
 	NSApplicationActivationPolicyProhibited
 } NSApplicationActivationPolicy;
 
-typedef NS_ENUM(u32, NSBackingStoreType) {
+typedef RGFW_ENUM(u32, NSBackingStoreType) {
 	NSBackingStoreRetained = 0,
 		NSBackingStoreNonretained = 1,
 		NSBackingStoreBuffered = 2
 };
 
-typedef NS_ENUM(u32, NSWindowStyleMask) {
+typedef RGFW_ENUM(u32, NSWindowStyleMask) {
 	NSWindowStyleMaskBorderless = 0,
 		NSWindowStyleMaskTitled = 1 << 0,
 		NSWindowStyleMaskClosable = 1 << 1,
@@ -7439,7 +7394,7 @@ typedef NS_ENUM(u32, NSWindowStyleMask) {
 NSPasteboardType const NSPasteboardTypeString = "public.utf8-plain-text"; // Replaces NSStringPasteboardType
 
 
-typedef NS_ENUM(i32, NSDragOperation) {
+typedef RGFW_ENUM(i32, NSDragOperation) {
 	NSDragOperationNone = 0,
 		NSDragOperationCopy = 1,
 		NSDragOperationLink = 2,
@@ -7813,7 +7768,6 @@ void RGFW_osxInitIOKit(void) {
 #endif
 
 void NSMoveToResourceDir(void) {
-	/* sourced from glfw */
 	char resourcesPath[255];
 
 	CFBundleRef bundle = CFBundleGetMainBundle();
@@ -8150,7 +8104,7 @@ RGFW_point RGFW_window_getMousePoint(RGFW_window* win) {
 }
 
 u32 RGFW_keysPressed[10]; /*10 keys at a time*/
-typedef NS_ENUM(u32, NSEventType) {        /* various types of events */
+typedef RGFW_ENUM(u32, NSEventType) {        /* various types of events */
 	NSEventTypeLeftMouseDown = 1,
 		NSEventTypeLeftMouseUp = 2,
 		NSEventTypeRightMouseDown = 3,
@@ -8191,7 +8145,7 @@ typedef NS_ENUM(u32, NSEventType) {        /* various types of events */
 		NSEventTypeChangeMode API_AVAILABLE(macos(10.15)) = 38,
 };
 
-typedef NS_ENUM(unsigned long long, NSEventMask) { /* masks for the types of events */
+typedef RGFW_ENUM(unsigned long long, NSEventMask) { /* masks for the types of events */
 	NSEventMaskLeftMouseDown = 1ULL << NSEventTypeLeftMouseDown,
 		NSEventMaskLeftMouseUp = 1ULL << NSEventTypeLeftMouseUp,
 		NSEventMaskRightMouseDown = 1ULL << NSEventTypeRightMouseDown,
@@ -8845,24 +8799,21 @@ RGFW_monitor RGFW_window_getMonitor(RGFW_window* win) {
 	return RGFW_NSCreateMonitor(display, screen);
 }
 
-const char* RGFW_readClipboard(size_t* size) {
+RGFW_ssize_t RGFW_readClipboardPtr(char* str, size_t strCapacity) {
 	size_t clip_len;
 	char* clip = (char*)NSPasteboard_stringForType(NSPasteboard_generalPasteboard(), NSPasteboardTypeString, &clip_len);
+	if (clip == NULL) return -1;	
 
-	char* str = (char*)RGFW_alloc(sizeof(char) * clip_len);
-
-	if (clip != NULL) {
+	if (str != NULL) {
+		if (strCapacity < clip_len)
+			return 0;
+			
 		RGFW_MEMCPY(str, clip, clip_len);
+
+		str[clip_len] = '\0';
 	}
 
-	str[clip_len] = '\0';
-
-	if (size != NULL)
-		*size = clip_len;
-
-	RGFW_clipboard_switch(str);
-
-	return str;
+	return (RGFW_ssize_t)clip_len;
 }
 
 void RGFW_writeClipboard(const char* text, u32 textLen) {
@@ -9779,17 +9730,13 @@ void RGFW_writeClipboard(const char* text, u32 textLen) {
 }
 
 
-const char* RGFW_readClipboard(size_t* size) {
+RGFW_ssize_t RGFW_readClipboardPtr(char* str, size_t strCapacity) {
+	RGFW_UNUSED(str); RGFW_UNUSED(strCapacity);
 	/*
 		placeholder code for later
 		I'm not sure if this is possible do the the async stuff
 	*/
-
-	size_t len = 0;
-	if (size != NULL)
-		*size = len;
-
-	return "\0";
+	return 0;
 }
 
 void RGFW_window_swapBuffers(RGFW_window* win) {
