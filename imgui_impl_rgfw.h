@@ -24,7 +24,9 @@
 
 #define RGFW_IMGUI_H
 
-struct RGFW_window;
+#include <stdbool.h>
+
+typedef struct RGFW_window RGFW_window;
 
 /* basic api */
 IMGUI_IMPL_API bool     ImGui_ImplRgfw_InitForOpenGL(RGFW_window* window, bool install_callbacks);
@@ -49,10 +51,10 @@ typedef struct {int x; int y;} impoint;
 // RGFW callbacks (individual callbacks to call yourself if you didn't install callbacks)
 IMGUI_IMPL_API void     ImGui_ImplRgfw_WindowFocusCallback(RGFW_window* window, u8 inFocus);        // Since 1.84
 IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorEnterCallback(RGFW_window* window, RGFW_point point, u8 status);        // Since 1.84
-IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p);   // Since 1.87
+IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p, RGFW_point v);   // Since 1.87
 IMGUI_IMPL_API void     ImGui_ImplRgfw_MouseButtonCallback(RGFW_window* window, u8 button, double scroll, u8 pressed);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double yoffset);
-IMGUI_IMPL_API void     ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 keycode, char keyChar, u8 modState, u8 pressed);
+IMGUI_IMPL_API void     ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 keycode, u8 keyChar, u8 modState, u8 pressed);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_CharCallback(RGFW_window* window, unsigned int c);
 #endif /* ifndef RGFW_IMGUI_H */
 
@@ -81,9 +83,9 @@ struct ImGui_ImplRgfw_Data
 
     // Chain RGFW callbacks: our callbacks will call the user's previously installed callbacks, if any.
     RGFW_focusfunc      PrevUserCallbackWindowFocus;
-    RGFW_mouseposfunc        PrevUserCallbackCursorPos;
+    RGFW_mousePosfunc        PrevUserCallbackCursorPos;
     RGFW_mouseNotifyfunc      PrevUserCallbackCursorEnter;
-    RGFW_mousebuttonfunc      PrevUserCallbackMousebutton;
+    RGFW_mouseButtonfunc      PrevUserCallbackMousebutton;
     RGFW_keyfunc              PrevUserCallbackKey;
 
     ImGui_ImplRgfw_Data()   { memset((void*)this, 0, sizeof(*this)); }
@@ -109,8 +111,7 @@ static void ImGui_ImplRgfw_SetClipboardText(void* user_data, const char* text)
 {
     RGFW_UNUSED(user_data);
     RGFW_UNUSED(text);
-    //RGFW_writeClipboard(text, strlen(text));
-RGFW_writeClipboard("DOWN", 4);
+    RGFW_writeClipboard(text, strlen(text));
 }
 
 static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
@@ -211,10 +212,8 @@ void ImGui_ImplRgfw_MouseButtonCallback(RGFW_window* window, u8 button, double s
         return ImGui_ImplRgfw_ScrollCallback(window, 0, scroll);
     }
     
-
     if (button == RGFW_mouseMiddle) button = RGFW_mouseRight;
     else if (button == RGFW_mouseRight) button = RGFW_mouseMiddle;
-    button--;
 
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackMousebutton != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
@@ -236,7 +235,7 @@ void ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double y
     io.AddMouseWheelEvent((float)xoffset, (float)yoffset);
 }
 
-void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 key, char keyChar, u8 modState, b8 pressed)
+void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 key, u8 keyChar, u8 modState, RGFW_bool pressed)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackKey != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
@@ -258,7 +257,7 @@ void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 key, char keyChar, u8 mo
     //io.SetKeyEventNativeData(imgui_key, keyChar, key); // To support legacy indexing (<1.87 user code)
 }
 
-void ImGui_ImplRgfw_WindowFocusCallback(RGFW_window* window, b8 inFocus)
+void ImGui_ImplRgfw_WindowFocusCallback(RGFW_window* window, RGFW_bool inFocus)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackWindowFocus != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
@@ -268,11 +267,11 @@ void ImGui_ImplRgfw_WindowFocusCallback(RGFW_window* window, b8 inFocus)
     io.AddFocusEvent(inFocus != 0);
 }
 
-void ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p)
+void ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p, RGFW_point v)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackCursorPos != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
-        bd->PrevUserCallbackCursorPos(window, p);
+        bd->PrevUserCallbackCursorPos(window, p, v);
 
     ImGuiIO& io = ImGui::GetIO();
     io.AddMousePosEvent((float)p.x, (float)p.y);
@@ -281,7 +280,7 @@ void ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p)
 
 // Workaround: X11 seems to send spurious Leave/Enter events which would make us lose our position,
 // so we back it up and restore on Leave/Enter (see https://github.com/ocornut/imgui/issues/4984)
-void ImGui_ImplRgfw_CursorEnterCallback(RGFW_window* window, RGFW_point point, b8 status)
+void ImGui_ImplRgfw_CursorEnterCallback(RGFW_window* window, RGFW_point point, RGFW_bool status)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackCursorEnter != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
@@ -320,7 +319,7 @@ void ImGui_ImplRgfw_InstallCallbacks(RGFW_window* window)
     */
 
     bd->PrevUserCallbackWindowFocus = RGFW_setFocusCallback(ImGui_ImplRgfw_WindowFocusCallback);
-    bd->PrevUserCallbackCursorEnter = RGFW_setMouseNotifyCallBack(ImGui_ImplRgfw_CursorEnterCallback);
+    bd->PrevUserCallbackCursorEnter = RGFW_setMouseNotifyCallback(ImGui_ImplRgfw_CursorEnterCallback);
     bd->PrevUserCallbackCursorPos = RGFW_setMousePosCallback(ImGui_ImplRgfw_CursorPosCallback);
     bd->PrevUserCallbackMousebutton = RGFW_setMouseButtonCallback(ImGui_ImplRgfw_MouseButtonCallback);
     bd->PrevUserCallbackKey = RGFW_setKeyCallback(ImGui_ImplRgfw_KeyCallback);
@@ -334,7 +333,7 @@ void ImGui_ImplRgfw_RestoreCallbacks(RGFW_window* window)
     IM_ASSERT(bd->Window == window);
 
     RGFW_setFocusCallback(bd->PrevUserCallbackWindowFocus);
-    RGFW_setMouseNotifyCallBack(bd->PrevUserCallbackCursorEnter);
+    RGFW_setMouseNotifyCallback(bd->PrevUserCallbackCursorEnter);
     RGFW_setMousePosCallback(bd->PrevUserCallbackCursorPos);
     RGFW_setMouseButtonCallback(bd->PrevUserCallbackMousebutton);
     RGFW_setKeyCallback(bd->PrevUserCallbackKey);
@@ -437,7 +436,7 @@ static void ImGui_ImplRgfw_UpdateMouseData()
     // (those braces are here to reduce diff with multi-viewports support in 'docking' branch)
     {
         RGFW_window* window = bd->Window;
-        const bool is_window_focused = window->event.inFocus;
+        const bool is_window_focused = RGFW_window_isInFocus(window);
         if (is_window_focused)
         {
             // (Optional) Set OS mouse position from Dear ImGui if requested (rarely used, only when ImGuiConfigFlags_NavEnableSetMousePos is enabled by user)
