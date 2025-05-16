@@ -194,7 +194,8 @@ static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
         ImGuiKey_Keypad9,
         ImGuiKey_Keypad0,
         ImGuiKey_KeypadDecimal,
-        ImGuiKey_KeypadEnter
+        ImGuiKey_KeypadEnter,
+	ImGuiKey_None
     };
 
     return map[key];
