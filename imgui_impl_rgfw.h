@@ -8,16 +8,35 @@
 #ifndef RGFW_IMGUI_H
 #include "imgui.h"      // IMGUI_IMPL_API
 
-#if !defined(u8)
-	#if defined(_MSC_VER) || defined(__SYMBIAN32__) /* MSVC might not have stdint.h */
+#ifdef _MSC_VER
+    #if _MSC_VER < 600
+        #define RGFW_USE_INT
+    #endif
+#endif
+
+#ifndef RGFW_INT_DEFINED
+	#ifdef RGFW_USE_INT /* optional for any system that might not have stdint.h */
 		typedef unsigned char 	u8;
-		typedef signed long		i64;
+		typedef signed char		i8;
+		typedef unsigned short  u16;
+		typedef signed short 	i16;
+		typedef unsigned long int 	u32;
+		typedef signed long int		i32;
+		typedef unsigned long long	u64;
+		typedef signed long long		i64;
 	#else /* use stdint standard types instead of c ""standard"" types */
 		#include <stdint.h>
 
 		typedef uint8_t     u8;
+		typedef int8_t      i8;
+		typedef uint16_t   u16;
+		typedef int16_t    i16;
 		typedef uint32_t   u32;
+		typedef int32_t    i32;
+		typedef uint64_t   u64;
+		typedef int64_t    i64;
 	#endif
+    #define RGFW_INT_DEFINED
 #endif
 
 #ifndef IMGUI_DISABLE
