@@ -1,5 +1,6 @@
 #include <cstdio>
 
+#define RGFW_DEBUG
 #define RGFW_IMPLEMENTATION
 #define RGFW_IMGUI_IMPLEMENTATION
 #include "../imgui_impl_rgfw.h"
@@ -26,7 +27,6 @@ int main() {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.DeltaTime = 1.0f / 60.0f;
-
     // Build atlas
     unsigned char* tex_pixels = nullptr;
     int tex_w, tex_h;
