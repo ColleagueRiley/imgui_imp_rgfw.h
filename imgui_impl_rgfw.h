@@ -494,7 +494,22 @@ static void ImGui_ImplRgfw_UpdateMouseCursor()
         {
             // Show OS mouse cursor
             // FIXME-PLATFORM: Unfocused windows seems to fail changing the mouse cursor with RGFW 3.2, but 3.3 works here.
-            RGFW_window_setMouseStandard(window, (imgui_cursor + 1));
+
+            static const u8 imgui_mouse_cursors[] = {
+                RGFW_mouseNormal,
+                RGFW_mouseIbeam,
+                RGFW_mouseResizeAll,
+                RGFW_mouseResizeNS,
+                RGFW_mouseResizeEW,
+                RGFW_mouseResizeNESW,
+                RGFW_mouseResizeNWSE,
+                RGFW_mousePointingHand,
+                RGFW_mouseNotAllowed,
+                RGFW_mouseNotAllowed,
+                RGFW_mouseNotAllowed,
+            };
+
+            RGFW_window_setMouseStandard(window, imgui_mouse_cursors[imgui_cursor]);
             
             RGFW_window_showMouse(window, 1);
         }
