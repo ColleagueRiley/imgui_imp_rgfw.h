@@ -505,13 +505,12 @@ static void ImGui_ImplRgfw_UpdateMouseCursor()
                 RGFW_mouseResizeNWSE,
                 RGFW_mousePointingHand,
                 RGFW_mouseNotAllowed,
-                RGFW_mouseNotAllowed,
-                RGFW_mouseNotAllowed,
             };
 
-            RGFW_window_setMouseStandard(window, imgui_mouse_cursors[imgui_cursor]);
-            
-            RGFW_window_showMouse(window, 1);
+				if (imgui_cursor < sizeof(imgui_mouse_cursors) {
+            	RGFW_window_setMouseStandard(window, imgui_mouse_cursors[imgui_cursor]);
+            	RGFW_window_showMouse(window, 1);
+				}
         }
     }
 }
