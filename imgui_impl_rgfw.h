@@ -130,7 +130,7 @@ static void ImGui_ImplRgfw_SetClipboardText(void* user_data, const char* text)
 {
     RGFW_UNUSED(user_data);
     RGFW_UNUSED(text);
-    RGFW_writeClipboard(text, strlen(text));
+    RGFW_writeClipboard(text, (u32)strlen(text));
 }
 
 static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
