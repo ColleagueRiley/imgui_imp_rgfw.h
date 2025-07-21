@@ -444,7 +444,7 @@ void ImGui_ImplRgfw_Shutdown()
     
     io.BackendPlatformName = nullptr;
     io.BackendPlatformUserData = nullptr;
-    io.BackendFlags &= ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos | ImGuiBackendFlags_HasGamepad);
+    io.BackendFlags &= ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos);
     IM_DELETE(bd);
 }
 
@@ -515,44 +515,6 @@ static void ImGui_ImplRgfw_UpdateMouseCursor()
     }
 }
 
-// Update gamepad inputs
-static inline float Saturate(float v) { return v < 0.0f ? 0.0f : v  > 1.0f ? 1.0f : v; }
-static void ImGui_ImplRgfw_UpdateGamepads()
-{
-    ImGuiIO& io = ImGui::GetIO();
-    if ((io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad) == 0) // FIXME: Technically feeding gamepad shouldn't depend on this now that they are regular inputs.
-        return;
-
-    ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
-    IM_ASSERT(bd != nullptr && "Context or backend not initialized! Did you call ImGui_ImplRgfw_InitForXXX()?");
-
-    io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
-    int axes_count = bd->Window->event.axisesCount;
-    int buttons_count = 8;
-
-    if (axes_count == 0 || buttons_count == 0)
-        return;
-    #define MAP_BUTTON(KEY_NO, _UNUSED, BUTTON_NO)          do { io.AddKeyEvent(KEY_NO, (buttons_count > BUTTON_NO && RGFW_isPressedGamepad(bd->Window, 1, BUTTON_NO) == RGFW_TRUE)); } while (0)
-    #define MAP_ANALOG(KEY_NO, _UNUSED, AXIS_NO, V0, V1)    do { float v = (axes_count > AXIS_NO) ? axes[AXIS_NO] : V0; v = (v - V0) / (V1 - V0); io.AddKeyAnalogEvent(KEY_NO, v > 0.10f, Saturate(v)); } while (0)
-    io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
-    MAP_BUTTON(ImGuiKey_GamepadStart,       RGFW_gamepadStart,          9);
-    MAP_BUTTON(ImGuiKey_GamepadBack,        RGFW_gamepadSelect,           8);
-    MAP_BUTTON(ImGuiKey_GamepadFaceLeft,    RGFW_gamepadY,              2);     // Xbox X, PS Square
-    MAP_BUTTON(ImGuiKey_GamepadFaceRight,   RGFW_gamepadB,              1);     // Xbox B, PS Circle
-    MAP_BUTTON(ImGuiKey_GamepadFaceUp,      RGFW_gamepadX,              3);     // Xbox Y, PS Triangle
-    MAP_BUTTON(ImGuiKey_GamepadFaceDown,    RGFW_gamepadA,              0);     // Xbox A, PS Cross
-    MAP_BUTTON(ImGuiKey_GamepadDpadLeft,    RGFW_gamepadLeft,      15);
-    MAP_BUTTON(ImGuiKey_GamepadDpadRight,   RGFW_gamepadRight,     16);
-    MAP_BUTTON(ImGuiKey_GamepadDpadUp,      RGFW_gamepadUp,        13);
-    MAP_BUTTON(ImGuiKey_GamepadDpadDown,    RGFW_gamepadDown,      14);
-    MAP_BUTTON(ImGuiKey_GamepadR3,          RGFW_gamepadR3,           RGFW_gamepadR3);
-    MAP_BUTTON(ImGuiKey_GamepadL3,          RGFW_gamepadL3,           RGFW_gamepadL3);
-    MAP_BUTTON(ImGuiKey_GamepadL1,          RGFW_gamepadL1,    4);
-    MAP_BUTTON(ImGuiKey_GamepadR1,          RGFW_gamepadR1,   6);
-    #undef MAP_BUTTON
-    #undef MAP_ANALOG
-}
-
 void ImGui_ImplRgfw_NewFrame()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -573,9 +535,6 @@ void ImGui_ImplRgfw_NewFrame()
 
     ImGui_ImplRgfw_UpdateMouseData();
     ImGui_ImplRgfw_UpdateMouseCursor();
-
-    // Update game controllers (if enabled and available)
-    ImGui_ImplRgfw_UpdateGamepads();
 }
 
 //-----------------------------------------------------------------------------
