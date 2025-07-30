@@ -1,7 +1,7 @@
 /*
     dear imgui RGFW backend
     This needs to be used along with a Renderer (e.g. OpenGL3, Vulkan, WebGPU..)
-*/ 
+*/
 
 #pragma once
 
@@ -44,6 +44,7 @@
 #define RGFW_IMGUI_H
 
 #include <stdbool.h>
+#include <chrono>
 
 typedef struct RGFW_window RGFW_window;
 
@@ -121,7 +122,7 @@ char* clipboard_str = nullptr;
 static const char* ImGui_ImplRgfw_GetClipboardText(void* user_data)
 {
     RGFW_UNUSED(user_data);
-    
+
     size_t size;
     return RGFW_readClipboard(&size);
 }
@@ -135,14 +136,14 @@ static void ImGui_ImplRgfw_SetClipboardText(void* user_data, const char* text)
 
 static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
 {
-    static const ImGuiKey map[] = {        
+    static const ImGuiKey map[] = {
         ImGuiKey_None,
         ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
-        ImGuiKey_Backspace, 
-        ImGuiKey_Tab, 
-        ImGuiKey_Enter, 
+        ImGuiKey_Backspace,
+        ImGuiKey_Tab,
+        ImGuiKey_Enter,
         ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
-        ImGuiKey_Escape, 
+        ImGuiKey_Escape,
         ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
         ImGuiKey_Space,
         ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
@@ -155,7 +156,7 @@ static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
         ImGuiKey_0, ImGuiKey_1, ImGuiKey_2, ImGuiKey_3, ImGuiKey_4, ImGuiKey_5, ImGuiKey_6, ImGuiKey_7, ImGuiKey_8, ImGuiKey_9,
         ImGuiKey_None,
         ImGuiKey_Semicolon,
-        ImGuiKey_None, 
+        ImGuiKey_None,
         ImGuiKey_Equal,
         ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None, ImGuiKey_None,
         ImGuiKey_Backslash,
@@ -195,7 +196,7 @@ static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
         ImGuiKey_Insert,
         ImGuiKey_End,
         ImGuiKey_Home,
-        
+
         ImGuiKey_PageUp,
         ImGuiKey_PageDown,
         ImGuiKey_NumLock,
@@ -231,7 +232,7 @@ void ImGui_ImplRgfw_MouseButtonCallback(RGFW_window* window, u8 button, double s
     if (button >= RGFW_mouseScrollUp) {
         return ImGui_ImplRgfw_ScrollCallback(window, 0, scroll);
     }
-    
+
     if (button == RGFW_mouseMiddle) button = RGFW_mouseRight;
     else if (button == RGFW_mouseRight) button = RGFW_mouseMiddle;
 
@@ -260,7 +261,7 @@ void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 key, u8 keyChar, u8 modS
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackKey != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
         bd->PrevUserCallbackKey(window, key, keyChar, modState, pressed);
-    
+
     ImGuiIO& io = ImGui::GetIO();
     io.AddKeyEvent(ImGuiMod_Ctrl, modState & RGFW_modControl);
     io.AddKeyEvent(ImGuiMod_Shift, modState & RGFW_modShift);
@@ -333,7 +334,7 @@ void ImGui_ImplRgfw_InstallCallbacks(RGFW_window* window)
     IM_ASSERT(bd->InstalledCallbacks == false && "Callbacks already installed!");
     IM_ASSERT(bd->Window == window);
 
-    /* 
+    /*
         TODO: RGFW doesn't have anyway to do this yet
         update this when I add it to RGFW
     */
@@ -441,7 +442,7 @@ void ImGui_ImplRgfw_Shutdown()
 
     if (bd->InstalledCallbacks)
         ImGui_ImplRgfw_RestoreCallbacks(bd->Window);
-    
+
     io.BackendPlatformName = nullptr;
     io.BackendPlatformUserData = nullptr;
     io.BackendFlags &= ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos);
@@ -526,11 +527,12 @@ void ImGui_ImplRgfw_NewFrame()
     io.DisplaySize = ImVec2((float)size.w, (float)size.h);
 
     // Setup time step
-    // (Accept RGFW_getTime() not returning a monotonically increasing value. Seems to happens on disconnecting peripherals and probably on VMs and Emscripten, see #6491, #6189, #6114, #3644)
-    double current_time = RGFW_getTime();
-    if (current_time <= bd->Time)
-        current_time = bd->Time + 0.00001f;
-    io.DeltaTime = bd->Time > 0.0 ? (float)(current_time - bd->Time) : (float)(1.0f / 60.0f);
+    using namespace std::chrono;
+    double current_time = duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count() / 1000.0f;
+    if(current_time <= bd->Time) {
+        current_time = bd->Time + 0.000001;
+    }
+    io.DeltaTime = bd->Time == 0.0 ? static_cast<float>(1.0f / 60.0f) : static_cast<float>(current_time - bd->Time);
     bd->Time = current_time;
 
     ImGui_ImplRgfw_UpdateMouseData();
