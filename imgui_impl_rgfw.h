@@ -74,7 +74,7 @@ IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorEnterCallback(RGFW_window* window, 
 IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p, RGFW_point v);   // Since 1.87
 IMGUI_IMPL_API void     ImGui_ImplRgfw_MouseButtonCallback(RGFW_window* window, u8 button, double scroll, u8 pressed);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double yoffset);
-IMGUI_IMPL_API void     ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 keycode, u8 keyChar, u8 modState, u8 pressed);
+IMGUI_IMPL_API void     ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 keycode, u8 keyChar, u8 modState, u8 repeat, u8 pressed);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_CharCallback(RGFW_window* window, unsigned int c);
 #endif /* ifndef RGFW_IMGUI_H */
 
@@ -256,11 +256,11 @@ void ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double y
     io.AddMouseWheelEvent((float)xoffset, (float)yoffset);
 }
 
-void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 key, u8 keyChar, u8 modState, RGFW_bool pressed)
+void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 key, u8 keyChar, u8 modState, RGFW_bool repeat, RGFW_bool pressed)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackKey != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
-        bd->PrevUserCallbackKey(window, key, keyChar, modState, pressed);
+        bd->PrevUserCallbackKey(window, key, keyChar, modState, repeat, pressed);
 
     ImGuiIO& io = ImGui::GetIO();
     io.AddKeyEvent(ImGuiMod_Ctrl, modState & RGFW_modControl);
