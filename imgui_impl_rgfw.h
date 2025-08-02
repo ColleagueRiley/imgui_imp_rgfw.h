@@ -74,7 +74,7 @@ IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorEnterCallback(RGFW_window* window, 
 IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p, RGFW_point v);   // Since 1.87
 IMGUI_IMPL_API void     ImGui_ImplRgfw_MouseButtonCallback(RGFW_window* window, u8 button, double scroll, u8 pressed);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double yoffset);
-IMGUI_IMPL_API void     ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 keycode, u8 keyChar, u8 modState, u8 pressed);
+IMGUI_IMPL_API void     ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 keycode, u8 keyChar, u8 modState, u8 repeat, u8 pressed);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_CharCallback(RGFW_window* window, unsigned int c);
 #endif /* ifndef RGFW_IMGUI_H */
 
@@ -108,7 +108,7 @@ struct ImGui_ImplRgfw_Data
     RGFW_mouseButtonfunc      PrevUserCallbackMousebutton;
     RGFW_keyfunc              PrevUserCallbackKey;
 
-    ImGui_ImplRgfw_Data()   { memset((void*)this, 0, sizeof(*this)); }
+    ImGui_ImplRgfw_Data()   { memset(static_cast<void*>(this), 0, sizeof(*this)); }
 };
 
 static ImGui_ImplRgfw_Data* ImGui_ImplRgfw_GetBackendData()
@@ -131,7 +131,7 @@ static void ImGui_ImplRgfw_SetClipboardText(void* user_data, const char* text)
 {
     RGFW_UNUSED(user_data);
     RGFW_UNUSED(text);
-    RGFW_writeClipboard(text, (u32)strlen(text));
+    RGFW_writeClipboard(text, static_cast<u32>(strlen(text)));
 }
 
 static ImGuiKey ImGui_ImplRgfw_KeyToImGuiKey(int key)
@@ -253,14 +253,14 @@ void ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double y
         bd->PrevUserCallbackMousebutton(window, RGFW_mouseScrollUp + (yoffset > 0), yoffset, RGFW_TRUE);
 
     ImGuiIO& io = ImGui::GetIO();
-    io.AddMouseWheelEvent((float)xoffset, (float)yoffset);
+    io.AddMouseWheelEvent(static_cast<float>(xoffset), static_cast<float>(yoffset));
 }
 
-void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 key, u8 keyChar, u8 modState, RGFW_bool pressed)
+void ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 key, u8 keyChar, u8 modState, RGFW_bool repeat, RGFW_bool pressed)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackKey != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
-        bd->PrevUserCallbackKey(window, key, keyChar, modState, pressed);
+        bd->PrevUserCallbackKey(window, key, keyChar, modState, repeat, pressed);
 
     ImGuiIO& io = ImGui::GetIO();
     io.AddKeyEvent(ImGuiMod_Ctrl, modState & RGFW_modControl);
@@ -295,8 +295,8 @@ void ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p, RGFW_po
         bd->PrevUserCallbackCursorPos(window, p, v);
 
     ImGuiIO& io = ImGui::GetIO();
-    io.AddMousePosEvent((float)p.x, (float)p.y);
-    bd->LastValidMousePos = ImVec2((float)p.x, (float)p.y);
+    io.AddMousePosEvent(static_cast<float>(p.x), static_cast<float>(p.y));
+    bd->LastValidMousePos = ImVec2(static_cast<float>(p.x), static_cast<float>(p.y));
 }
 
 // Workaround: X11 seems to send spurious Leave/Enter events which would make us lose our position,
@@ -388,7 +388,7 @@ static bool ImGui_ImplRgfw_Init(RGFW_window* window, bool install_callbacks, Rgf
 
     // Setup backend capabilities flags
     ImGui_ImplRgfw_Data* bd = IM_NEW(ImGui_ImplRgfw_Data)();
-    io.BackendPlatformUserData = (void*)bd;
+    io.BackendPlatformUserData = static_cast<void*>(bd);
     io.BackendPlatformName = "imgui_impl_rgfw";
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
     io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
@@ -408,7 +408,7 @@ static bool ImGui_ImplRgfw_Init(RGFW_window* window, bool install_callbacks, Rgf
 
     // Set platform dependent data in viewport
     ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-    main_viewport->PlatformHandle = (void*)bd->Window;
+    main_viewport->PlatformHandle = static_cast<void*>(bd->Window);
 #if defined(_WIN32) || defined(__APPLE__)
     main_viewport->PlatformHandleRaw = bd->Window->src.window;
 #else
@@ -462,14 +462,14 @@ static void ImGui_ImplRgfw_UpdateMouseData()
         {
             // (Optional) Set OS mouse position from Dear ImGui if requested (rarely used, only when ImGuiConfigFlags_NavEnableSetMousePos is enabled by user)
             if (io.WantSetMousePos)
-                RGFW_window_moveMouse(window, RGFW_POINT((i32)io.MousePos.x, (i32)io.MousePos.y));
+                RGFW_window_moveMouse(window, RGFW_POINT(static_cast<i32>(io.MousePos.x), static_cast<i32>(io.MousePos.y)));
 
             // (Optional) Fallback to provide mouse position when focused (ImGui_ImplRgfw_CursorPosCallback already provides this when hovered or captured)
             if (bd->MouseWindow == nullptr)
             {
                 RGFW_point point = RGFW_window_getMousePoint(window);
-                bd->LastValidMousePos = ImVec2((float)point.x, (float)point.y);
-                io.AddMousePosEvent((float)point.x, (float)point.y);
+                bd->LastValidMousePos = ImVec2(static_cast<float>(point.x), static_cast<float>(point.y));
+                io.AddMousePosEvent(static_cast<float>(point.x), static_cast<float>(point.y));
             }
         }
     }
@@ -524,7 +524,7 @@ void ImGui_ImplRgfw_NewFrame()
 
     // Setup display size (every frame to accommodate for window resizing)
     RGFW_rect size = bd->Window->r;
-    io.DisplaySize = ImVec2((float)size.w, (float)size.h);
+    io.DisplaySize = ImVec2(static_cast<float>(size.w), static_cast<float>(size.h));
 
     // Setup time step
     using namespace std::chrono;
