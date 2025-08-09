@@ -480,7 +480,7 @@ static void ImGui_ImplRgfw_UpdateMouseCursor()
 {
     ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
-    if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) || (bd->Window->_flags & (1L<<2)))
+    if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) || (bd->Window->internal.flags & (1L<<2)))
         return;
 
     ImGuiMouseCursor imgui_cursor = ImGui::GetMouseCursor();
