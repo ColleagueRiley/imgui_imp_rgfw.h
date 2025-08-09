@@ -70,8 +70,8 @@ typedef struct {int x; int y;} impoint;
 
 // RGFW callbacks (individual callbacks to call yourself if you didn't install callbacks)
 IMGUI_IMPL_API void     ImGui_ImplRgfw_WindowFocusCallback(RGFW_window* window, u8 inFocus);        // Since 1.84
-IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorEnterCallback(RGFW_window* window, RGFW_point point, u8 status);        // Since 1.84
-IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p, RGFW_point v);   // Since 1.87
+IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorEnterCallback(RGFW_window* window, i32 x, i32 y, u8 status);        // Since 1.84
+IMGUI_IMPL_API void     ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, i32 x, i32 y, float vecX, float vecY);   // Since 1.87
 IMGUI_IMPL_API void     ImGui_ImplRgfw_MouseButtonCallback(RGFW_window* window, u8 button, double scroll, u8 pressed);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_ScrollCallback(RGFW_window* window, double xoffset, double yoffset);
 IMGUI_IMPL_API void     ImGui_ImplRgfw_KeyCallback(RGFW_window* window, u8 keycode, u8 keyChar, u8 modState, u8 repeat, u8 pressed);
@@ -288,24 +288,24 @@ void ImGui_ImplRgfw_WindowFocusCallback(RGFW_window* window, RGFW_bool inFocus)
     io.AddFocusEvent(inFocus != 0);
 }
 
-void ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, RGFW_point p, RGFW_point v)
+void ImGui_ImplRgfw_CursorPosCallback(RGFW_window* window, i32 x, i32 y, float vecX, float vecY)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackCursorPos != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
-        bd->PrevUserCallbackCursorPos(window, p, v);
+        bd->PrevUserCallbackCursorPos(window, x, y, vecX, vecY);
 
     ImGuiIO& io = ImGui::GetIO();
-    io.AddMousePosEvent(static_cast<float>(p.x), static_cast<float>(p.y));
-    bd->LastValidMousePos = ImVec2(static_cast<float>(p.x), static_cast<float>(p.y));
+    io.AddMousePosEvent(static_cast<float>(x), static_cast<float>(y));
+    bd->LastValidMousePos = ImVec2(static_cast<float>(x), static_cast<float>(y));
 }
 
 // Workaround: X11 seems to send spurious Leave/Enter events which would make us lose our position,
 // so we back it up and restore on Leave/Enter (see https://github.com/ocornut/imgui/issues/4984)
-void ImGui_ImplRgfw_CursorEnterCallback(RGFW_window* window, RGFW_point point, RGFW_bool status)
+void ImGui_ImplRgfw_CursorEnterCallback(RGFW_window* window, i32 x, i32 y, RGFW_bool status)
 {
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
     if (bd->PrevUserCallbackCursorEnter != nullptr && ImGui_ImplRgfw_ShouldChainCallback(window))
-        bd->PrevUserCallbackCursorEnter(window, point, status);
+        bd->PrevUserCallbackCursorEnter(window, x, y, status);
 
     ImGuiIO& io = ImGui::GetIO();
     if (status)
@@ -462,14 +462,15 @@ static void ImGui_ImplRgfw_UpdateMouseData()
         {
             // (Optional) Set OS mouse position from Dear ImGui if requested (rarely used, only when ImGuiConfigFlags_NavEnableSetMousePos is enabled by user)
             if (io.WantSetMousePos)
-                RGFW_window_moveMouse(window, RGFW_POINT(static_cast<i32>(io.MousePos.x), static_cast<i32>(io.MousePos.y)));
+                RGFW_window_moveMouse(window, static_cast<i32>(io.MousePos.x), static_cast<i32>(io.MousePos.y));
 
             // (Optional) Fallback to provide mouse position when focused (ImGui_ImplRgfw_CursorPosCallback already provides this when hovered or captured)
             if (bd->MouseWindow == nullptr)
             {
-                RGFW_point point = RGFW_window_getMousePoint(window);
-                bd->LastValidMousePos = ImVec2(static_cast<float>(point.x), static_cast<float>(point.y));
-                io.AddMousePosEvent(static_cast<float>(point.x), static_cast<float>(point.y));
+                i32 x, y;
+                RGFW_window_getMouse(window, &x, &y);
+                bd->LastValidMousePos = ImVec2(static_cast<float>(x), static_cast<float>(y));
+                io.AddMousePosEvent(static_cast<float>(x), static_cast<float>(y));
             }
         }
     }
@@ -479,7 +480,7 @@ static void ImGui_ImplRgfw_UpdateMouseCursor()
 {
     ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplRgfw_Data* bd = ImGui_ImplRgfw_GetBackendData();
-    if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) || (bd->Window->_flags & (1L<<2)))
+    if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) || (bd->Window->internal.flags & (1L<<2)))
         return;
 
     ImGuiMouseCursor imgui_cursor = ImGui::GetMouseCursor();
@@ -523,8 +524,7 @@ void ImGui_ImplRgfw_NewFrame()
     IM_ASSERT(bd != nullptr && "Context or backend not initialized! Did you call ImGui_ImplRgfw_InitForXXX()?");
 
     // Setup display size (every frame to accommodate for window resizing)
-    RGFW_rect size = bd->Window->r;
-    io.DisplaySize = ImVec2(static_cast<float>(size.w), static_cast<float>(size.h));
+    io.DisplaySize = ImVec2(static_cast<float>(bd->Window->w), static_cast<float>(bd->Window->h));
 
     // Setup time step
     using namespace std::chrono;
